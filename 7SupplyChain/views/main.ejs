@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.5/dist/umd/popper.min.js"
+        integrity="sha384-Xe+8cL9oJa6tN/veChSP7q+mnSPaj5Bcu9mPX5F5xIGE0DVittaqT5lorf0EI7Vk"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.min.js"
+        integrity="sha384-kjU+l4N0Yf4ZOJErLsIcvOU2qSb74wXpOhqTvwVx3OElZRweTnQ6d31fXEoRD1Jy"
+        crossorigin="anonymous"></script>
+    <title>Main Page</title>
+</head>
+<style>
+    .main {
+        position: absolute;
+        margin-left: 17%;
+        margin-top: 10%;
+        display: flex;
+    }
+
+    .sub {
+        text-decoration: none;
+        font-size: 50px;
+        border: 2px solid black;
+        color: white;
+        background-color: grey;
+        border-radius: 10px;
+    }
+
+    .sub:hover {
+        background-color: black;
+    }
+
+    .appform-group1 {
+        border: 2px solid black;
+        background-color: grey;
+        padding: 10px;
+        margin: 10px;
+        border-radius: 10px;
+    }
+
+    .b {
+        margin-left: 20%;
+    }
+
+    .c {
+        margin-left: 20%;
+    }
+</style>
+
+<body>
+    <div class="main">
+        <div class="a">
+            <a class="sub" href="A_manufacturePost">Manufacturer</a>
+            <form id="panel-form" action="#" method="post">
+                <div class="appform-group1">
+                    <div class="appform-group">
+                        <label>Account Number</label>
+                        <br>
+                        <input style="width: 70%;" type="text" name="email" required />
+                    </div>
+                    <br>
+                    <div class="appform-group">
+                        <label>Password</label>
+                        <br>
+                        <input style="width: 70%;" type="password" name="password" required />
+                    </div>
+                    <br>
+                    <input type="submit" class="appform-button" value="Log In" />
+                </div>
+            </form>
+        </div>
+
+        <br>
+        <br>
+        <div class="b">
+            <a class="sub" href="B_supplierResponse">Supplier........</a>
+            <form id="panel-form" action="#" method="post">
+                <div class="appform-group1">
+                    <div class="appform-group">
+                        <label>Account Number</label>
+                        <br>
+                        <input style="width: 70%;" type="text" name="email" required />
+                    </div>
+                    <br>
+                    <div class="appform-group">
+                        <label>Password</label>
+                        <br>
+                        <input style="width: 70%;" type="password" name="password" required />
+                    </div>
+                    <br>
+                    <input type="submit" class="appform-button" value="Log In" />
+                </div>
+            </form>
+        </div>
+        <br>
+        <br>
+
+        <div class="c">
+            <a class="sub" href="E_shippedCarToCustomer">Customer.......</a>
+            <form id="panel-form" action="#" method="post">
+                <div class="appform-group1">
+                    <div class="appform-group">
+                        <label>Account Number</label>
+                        <br>
+                        <input style="width: 70%;" type="text" name="email" required />
+                    </div>
+                    <br>
+                    <div class="appform-group">
+                        <label>Password</label>
+                        <br>
+                        <input style="width: 70%;" type="password" name="password" required />
+                    </div>
+                    <br>
+                    <input type="submit" class="appform-button" value="Log In" />
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manufacturer</title>
+</head>
+<style>
+    .main {
+        position: absolute;
+        margin-left: 7%;
+        margin-top: 10%;
+        display: flex;
+    }
+
+    .sub {
+        width: 400px;
+        height: 550px;
+        text-decoration: none;
+        border: 2px solid black;
+        color: white;
+        background-color: grey;
+        border-radius: 10px;
+        padding: 10px;
+    }
+
+    .sub2 {
+        height: 200px;
+        width: 600px;
+        text-align: center;
+        margin-left: 10px;
+        margin-right: 10px;
+        margin-top: 10px;
+        text-decoration: none;
+        border: 2px solid black;
+        color: white;
+        background-color: grey;
+        border-radius: 10px;
+        padding: 10px;
+    }
+
+    .sub3 {
+        text-decoration: none;
+        border: 2px solid black;
+        color: white;
+        background-color: grey;
+        border-radius: 10px;
+        padding: 10px;
+        width: 480px;
+        height: 550px;
+    }
+
+    .sub4 {
+        height: 230px;
+        width: 600px;
+        text-align: center;
+        margin-left: -19.5%;
+        margin-right: 10px;
+        margin-top: 11%;
+        text-decoration: none;
+        border: 2px solid black;
+        color: white;
+        background-color: grey;
+        border-radius: 10px;
+        padding: 10px;
+    }
+
+    .sub5 {
+        height: 180px;
+        width: 270px;
+        margin-left: -8.5%;
+        /* margin-top: 20%; */
+        border: 2px solid black;
+        color: white;
+        background-color: grey;
+        border-radius: 10px;
+    }
+
+    .div1 {
+
+        margin-left: -39%;
+        margin-top: 20%;
+        border: 2px solid black;
+        color: white;
+        background-color: grey;
+        border-radius: 10px;
+    }
+
+    .div2 {
+        height: 280px;
+        width: 600px;
+        margin-left: 5%;
+        margin-top: 20%;
+        border: 2px solid black;
+        color: white;
+        background-color: grey;
+        border-radius: 10px;
+    }
+    
+</style>
+
+<body>
+    
+    <div class="main">
+        <div class="sub">
+            <h1>Request For Parts</h1>
+            <form action="A_manufactureGet" method="post">
+                <p>Address Of The Manufacturer</p>
+                <input type="text" name="address">
+                <p>Which Part You Required</p>
+                <input type="text" name="partName">
+                <p>How Much Quantity You Want Of The Part</p>
+                <input type="text" name="quantity">
+                <p>Date Of Ordering</p>
+                <input type="text" name="date">
+                <p>Price You Pay For Part For Whole Quantity</p>
+                <input type="text" name="price">
+                <p>What Is The Name Of Your Organization</p>
+                <input type="text" name="nameOfYourCompany">
+                <button> Request For Part</button>
+            </form>
+        </div>
+
+        <div class="sub2">
+            <h1>Manufacture Order Hash</h1>
+            <%if(hash!=0){%>
+                <%hash.forEach(function(item){%>
+                    <li>
+                        <%=item%>
+                    </li>
+                    <%});%>
+                        <%}%>
+        </div>
+
+        <div class="sub4">
+            <h1>Supplier Part Hash</h1>
+            <%if(hash2!=0){%>
+                <p>
+                    <%=hash2%>
+                </p>
+                <%}%>
+                    <h2>Payment</h2>
+                    <form action="AC_paymentToSupplierByManufacturer" method="post">
+                        <input type="text" placeholder="Enter Manufacture Address" name="address">
+                        <input type="text" placeholder="Enter Supplier Address" name="address2">
+                        <input type="text" placeholder="Enter Ethers You Want To Send" name="price">
+                        <button>Pay</button>
+                        <%if(toPrintPaymentStatus==true){%>
+                        <p>Payment Completed</p>
+                        <%}%>
+                    </form>
+        </div>
+        <div class="sub3">
+            <h1>Status</h1>
+            <form action="J_ownerOfHashGet" method="post">
+                <p>Address Of The Manufacturer</p>
+                <input type="text" name="address">
+                <p>Order Hash</p>
+                <input type="text" name="orderHash">
+                <button> Status </button>
+                <%if(Owner_Address!=0){%>
+                    <p>Owner Address : <%=Owner_Address%>
+                    </p>
+                    <p>Owner Name : <%=Owner_Name%>
+                    </p>
+                    <p>Product Name : <%=Product_Name%>
+                    </p>
+                    <p>Product Status : <%=Product_Status%>
+                    </p>
+                    <p>Payment Status : <%=Payment_Status%>
+                    </p>
+                    <%}%>
+            </form>
+        </div>
+        <div class="sub5">
+            <h1>Check Balance</h1>
+            <form action="K_manufacureBalance" method="post">
+                <input type="text" name="address" placeholder="Enter Your Address">
+                <input type="text" placeholder="<%=balance%>">
+                <button>Check Balance</button>
+                <p></p>
+            </form>
+        </div>
+
+
+        <div class="div1">
+            <h1>Get Car Details</h1>
+            <form action="G_getCarDetails" method="post">
+                <input type="text" name="address" placeholder="Enter Manufacturer Address">
+                <input type="text" name="hash" placeholder="Enter Manufacturer Created Hash">
+                <button> Get Parts</button>
+                <p>Manufacturer Part Name : </p>
+                <p><%=manufacturerPartName%></p>
+                <p>Manufacture Name : </p>
+                <input type="text" placeholder="<%=manufactureName%>">
+                <p>Manufacture Price : </p>
+                <input type="text" placeholder="<%=manufacturePrice%>">
+                <p>Manufacture Date : </p>
+                <input type="text" placeholder="<%=manufactureDate%>">
+                <p>Manufacture Quantity : </p>
+                <input type="text" placeholder="<%=manufactureQuantity%>">
+            </form>
+        </div>
+        <div class="div2">
+            <h1>Create Car</h1>
+            <form action="D_creatingCar" method="post">
+                <input type="text" name="address" placeholder="Enter Manufacturer Address">
+                <input type="text" name="productName" placeholder="Enter Product Name">
+                <input type="text" name="productPrice" placeholder="Enter Product Price">
+                <input type="text" name="date" placeholder="Enter Manufacture Date">
+                <input type="text" name="quantity" placeholder="Enter Quantity">
+                <button>Create Car</button>
+                <h2>Created Car Ordr Hash</h2>
+                <p><%=hash3%></p>
+            </form>
+        </div>
+    </div>
+
+    <h2>Your Address</h2>
+    <p>0x3B117F9902E6B259ACFB15fDb43A4Aa708d1892A</p>
+</body>
+
+</html>

@@ -24,79 +24,30 @@ contract ICO {
         return balances[addr];
     }
 
-    function transfer(uint256 numTokens) public payable {
+    function transfer(uint256 calculatedTokensPassingToContract) public payable {
         tokenFundsAddress.transfer(msg.value);
-        balances[tokenFundsAddress] -= (numTokens);
-        balances[msg.sender] += (numTokens);
+        balances[tokenFundsAddress] -= (calculatedTokensPassingToContract);
+        balances[msg.sender] += (calculatedTokensPassingToContract);
         amountRaised += msg.value;
-        emit TokenBuy(msg.sender, tokenFundsAddress, msg.value, numTokens);
+        emit TokenBuy(msg.sender, tokenFundsAddress, msg.value, calculatedTokensPassingToContract);
     }
 
-    function calculatedToken(uint256 numTokens)
-        public
-        view
-        returns (uint256 _tokenAssign)
-    {
-        uint256 numTokens1 = 0;
-        uint256 numTokens2 = 0;
-        uint256 numTokens3 = 0;
-        uint256 numTokens4 = 0;
-        uint256 e_numTokens1 = 0;
-        uint256 e_numTokens2 = 0;
-        uint256 e_numTokens3 = 0;
-        uint256 e_numTokens4 = 0;
-        uint256 rj = 0;
-        if (numTokens > (check * 25) / 100) {
-            numTokens1 = numTokens - (check * 25) / 100;
-            e_numTokens1 = (check * 25) / 100;
-            rj = rj + e_numTokens1;
-            if (numTokens1 > (check * 50) / 100) {
-                numTokens2 = numTokens1 - (check * 50) / 100;
-                e_numTokens2 = (check * 25) / 100;
-                rj = rj + e_numTokens2;
-            } else {
-                e_numTokens2 = numTokens1 / 2;
-                rj = rj + e_numTokens2;
-            }
-            if (numTokens2 > (check * 75) / 100) {
-                numTokens3 = numTokens2 - (check * 75) / 100;
-                e_numTokens3 = (check * 25) / 100;
-                rj = rj + e_numTokens3;
-            } else {
-                e_numTokens3 = numTokens2 / 3;
-                rj = rj + e_numTokens3;
-            }
-            if (numTokens3 >= (check * 100) / 100) {
-                numTokens4 = numTokens3 - (check * 100) / 100;
-                e_numTokens4 = (check * 100) / 100;
-                rj = rj + e_numTokens3;
-            } else {
-                e_numTokens4 = numTokens3 / 4;
-                rj = rj + e_numTokens4;
-            }
-        } else {
-            rj = rj + numTokens;
-        }
-        return rj;
-    }
-
-    function buyTokensWithEther() public payable {
+    function buyTokensWithEther(uint calculatedTokensPassingToContract) public payable {
         if(msg.value > ((check * 25)/100)*10 ){
             revert("Tu aamir hai bhai humse na hopyega");
         }
         else{
-            uint256 numTokens = msg.value;
            if(balances[tokenFundsAddress]>(check*75)/100 && balances[tokenFundsAddress] <= (check*100)/100){
-           transfer(calculatedToken(numTokens));
+           transfer(calculatedTokensPassingToContract);
            }
            else if( balances[tokenFundsAddress]>(check*50)/100 && balances[tokenFundsAddress] <= (check*75)/100){
-            transfer(calculatedToken(numTokens)/2);
+            transfer(calculatedTokensPassingToContract/2);
            }
            else if( balances[tokenFundsAddress] > (check*25)/100 && balances[tokenFundsAddress] <= ((check*50)/100)){
-               transfer(calculatedToken(numTokens)/3);
+               transfer(calculatedTokensPassingToContract/3);
            }
            else if(balances[tokenFundsAddress] > (check*1)/100 && balances[tokenFundsAddress] <= (check*25)/100){
-               transfer(calculatedToken(numTokens)/4);
+               transfer(calculatedTokensPassingToContract/4);
            }
         }
     }

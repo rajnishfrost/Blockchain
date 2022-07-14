@@ -1,7 +1,7 @@
 const express = require("express");
 const route =require("./routes/route");
 const app = express();
-const port = 2001;
+const port = 2000;
 const bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({extended:true}));
 app.use('/' , route.route)

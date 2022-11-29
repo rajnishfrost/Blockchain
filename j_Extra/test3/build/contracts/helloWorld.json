@@ -1,0 +1,289 @@
+{
+  "contractName": "helloWorld",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "helloworld",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    }
+  ],
+  "metadata": "{\"compiler\":{\"version\":\"0.8.0+commit.c7dfd78e\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"helloworld\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"pure\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"/home/rajnishyadav/Downloads/Blockchain/j_Extra/test3/contracts/helloWorld.sol\":\"helloWorld\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":false,\"runs\":200},\"remappings\":[]},\"sources\":{\"/home/rajnishyadav/Downloads/Blockchain/j_Extra/test3/contracts/helloWorld.sol\":{\"keccak256\":\"0x1a0bd788205e3a79eeb416194063e66b91f7a2d3fccea27ddb4e0fd820d3f859\",\"urls\":[\"bzz-raw://d9018040c415cf13f2943cc52436ee740bde7dd7d588cc9145edb34f08c17143\",\"dweb:/ipfs/QmSWvfg222nxG3hUMMv73LqRqhvZvQdXJZNZBcTAME8iHi\"]}},\"version\":1}",
+  "bytecode": "0x608060405234801561001057600080fd5b5061017c806100206000396000f3fe608060405234801561001057600080fd5b506004361061002b5760003560e01c80632f2f485914610030575b600080fd5b61003861004e565b60405161004591906100c4565b60405180910390f35b60606040518060400160405280600c81526020017f48656c6c6f20576f726c642e0000000000000000000000000000000000000000815250905090565b6000610096826100e6565b6100a081856100f1565b93506100b0818560208601610102565b6100b981610135565b840191505092915050565b600060208201905081810360008301526100de818461008b565b905092915050565b600081519050919050565b600082825260208201905092915050565b60005b83811015610120578082015181840152602081019050610105565b8381111561012f576000848401525b50505050565b6000601f19601f830116905091905056fea264697066735822122032fcf763dcb1eaef3ab6299b4c966588371938de1a157680755af3af8d373d9964736f6c63430008000033",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b506004361061002b5760003560e01c80632f2f485914610030575b600080fd5b61003861004e565b60405161004591906100c4565b60405180910390f35b60606040518060400160405280600c81526020017f48656c6c6f20576f726c642e0000000000000000000000000000000000000000815250905090565b6000610096826100e6565b6100a081856100f1565b93506100b0818560208601610102565b6100b981610135565b840191505092915050565b600060208201905081810360008301526100de818461008b565b905092915050565b600081519050919050565b600082825260208201905092915050565b60005b83811015610120578082015181840152602081019050610105565b8381111561012f576000848401525b50505050565b6000601f19601f830116905091905056fea264697066735822122032fcf763dcb1eaef3ab6299b4c966588371938de1a157680755af3af8d373d9964736f6c63430008000033",
+  "immutableReferences": {},
+  "sourceMap": "26:124:0:-:0;;;;;;;;;;;;;;;;;;;",
+  "deployedSourceMap": "26:124:0:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;52:96;;;:::i;:::-;;;;;;;:::i;:::-;;;;;;;;;95:13;120:21;;;;;;;;;;;;;;;;;;;52:96;:::o;7:364:1:-;;123:39;156:5;123:39;:::i;:::-;178:71;242:6;237:3;178:71;:::i;:::-;171:78;;258:52;303:6;298:3;291:4;284:5;280:16;258:52;:::i;:::-;335:29;357:6;335:29;:::i;:::-;330:3;326:39;319:46;;99:272;;;;;:::o;377:313::-;;528:2;517:9;513:18;505:26;;577:9;571:4;567:20;563:1;552:9;548:17;541:47;605:78;678:4;669:6;605:78;:::i;:::-;597:86;;495:195;;;;:::o;696:99::-;;782:5;776:12;766:22;;755:40;;;:::o;801:169::-;;919:6;914:3;907:19;959:4;954:3;950:14;935:29;;897:73;;;;:::o;976:307::-;1044:1;1054:113;1068:6;1065:1;1062:13;1054:113;;;1153:1;1148:3;1144:11;1138:18;1134:1;1129:3;1125:11;1118:39;1090:2;1087:1;1083:10;1078:15;;1054:113;;;1185:6;1182:1;1179:13;1176:2;;;1265:1;1256:6;1251:3;1247:16;1240:27;1176:2;1025:258;;;;:::o;1289:102::-;;1381:2;1377:7;1372:2;1365:5;1361:14;1357:28;1347:38;;1337:54;;;:::o",
+  "source": "pragma solidity >=0.8.0;\n\ncontract helloWorld {\n    function helloworld() public pure returns (string memory) {\n        return \"Hello World.\";\n    }\n}\n",
+  "sourcePath": "/home/rajnishyadav/Downloads/Blockchain/j_Extra/test3/contracts/helloWorld.sol",
+  "ast": {
+    "absolutePath": "/home/rajnishyadav/Downloads/Blockchain/j_Extra/test3/contracts/helloWorld.sol",
+    "exportedSymbols": {
+      "helloWorld": [
+        10
+      ]
+    },
+    "id": 11,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 1,
+        "literals": [
+          "solidity",
+          ">=",
+          "0.8",
+          ".0"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:0"
+      },
+      {
+        "abstract": false,
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "contract",
+        "fullyImplemented": true,
+        "id": 10,
+        "linearizedBaseContracts": [
+          10
+        ],
+        "name": "helloWorld",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "body": {
+              "id": 8,
+              "nodeType": "Block",
+              "src": "110:38:0",
+              "statements": [
+                {
+                  "expression": {
+                    "hexValue": "48656c6c6f20576f726c642e",
+                    "id": 6,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": true,
+                    "kind": "string",
+                    "lValueRequested": false,
+                    "nodeType": "Literal",
+                    "src": "127:14:0",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_stringliteral_6ac466601079053c254ab4f5750b05b5e881997738ed1d6dd3db2f8917ab8563",
+                      "typeString": "literal_string \"Hello World.\""
+                    },
+                    "value": "Hello World."
+                  },
+                  "functionReturnParameters": 5,
+                  "id": 7,
+                  "nodeType": "Return",
+                  "src": "120:21:0"
+                }
+              ]
+            },
+            "functionSelector": "2f2f4859",
+            "id": 9,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [],
+            "name": "helloworld",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 2,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "71:2:0"
+            },
+            "returnParameters": {
+              "id": 5,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 4,
+                  "mutability": "mutable",
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 9,
+                  "src": "95:13:0",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_string_memory_ptr",
+                    "typeString": "string"
+                  },
+                  "typeName": {
+                    "id": 3,
+                    "name": "string",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "95:6:0",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_string_storage_ptr",
+                      "typeString": "string"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "src": "94:15:0"
+            },
+            "scope": 10,
+            "src": "52:96:0",
+            "stateMutability": "pure",
+            "virtual": false,
+            "visibility": "public"
+          }
+        ],
+        "scope": 11,
+        "src": "26:124:0"
+      }
+    ],
+    "src": "0:151:0"
+  },
+  "legacyAST": {
+    "absolutePath": "/home/rajnishyadav/Downloads/Blockchain/j_Extra/test3/contracts/helloWorld.sol",
+    "exportedSymbols": {
+      "helloWorld": [
+        10
+      ]
+    },
+    "id": 11,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 1,
+        "literals": [
+          "solidity",
+          ">=",
+          "0.8",
+          ".0"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:0"
+      },
+      {
+        "abstract": false,
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "contract",
+        "fullyImplemented": true,
+        "id": 10,
+        "linearizedBaseContracts": [
+          10
+        ],
+        "name": "helloWorld",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "body": {
+              "id": 8,
+              "nodeType": "Block",
+              "src": "110:38:0",
+              "statements": [
+                {
+                  "expression": {
+                    "hexValue": "48656c6c6f20576f726c642e",
+                    "id": 6,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": true,
+                    "kind": "string",
+                    "lValueRequested": false,
+                    "nodeType": "Literal",
+                    "src": "127:14:0",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_stringliteral_6ac466601079053c254ab4f5750b05b5e881997738ed1d6dd3db2f8917ab8563",
+                      "typeString": "literal_string \"Hello World.\""
+                    },
+                    "value": "Hello World."
+                  },
+                  "functionReturnParameters": 5,
+                  "id": 7,
+                  "nodeType": "Return",
+                  "src": "120:21:0"
+                }
+              ]
+            },
+            "functionSelector": "2f2f4859",
+            "id": 9,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [],
+            "name": "helloworld",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 2,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "71:2:0"
+            },
+            "returnParameters": {
+              "id": 5,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 4,
+                  "mutability": "mutable",
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 9,
+                  "src": "95:13:0",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_string_memory_ptr",
+                    "typeString": "string"
+                  },
+                  "typeName": {
+                    "id": 3,
+                    "name": "string",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "95:6:0",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_string_storage_ptr",
+                      "typeString": "string"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "src": "94:15:0"
+            },
+            "scope": 10,
+            "src": "52:96:0",
+            "stateMutability": "pure",
+            "virtual": false,
+            "visibility": "public"
+          }
+        ],
+        "scope": 11,
+        "src": "26:124:0"
+      }
+    ],
+    "src": "0:151:0"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.8.0+commit.c7dfd78e.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.2.2-next.0",
+  "updatedAt": "2022-11-29T07:06:37.178Z",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {},
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {},
+    "version": 1
+  }
+}

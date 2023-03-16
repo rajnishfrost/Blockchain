@@ -8,8 +8,8 @@ const web3 = new Web3(
   )
 );
 const contract = new web3.eth.Contract(Contract_ABI, Contract_address);
-const address = '0xFce453aA73177E63f24530ea106ee75d478a5cb1';
-const pk = '61f84609b0c5c7cf36f01eb84af270c109bfcdd790db99af5fc4bec2315bc313';
+const address = '0xc54b40Db78B668d90E24Ca748FcF48966c5F36eB';
+const pk = '386636c3c8469349353a167a1d9a89ebae99a20e375afc1099bf9b16ca8f0b9f';
 async function newContract(){
 
     const nonce = await web3.eth.getTransactionCount(address);
@@ -49,7 +49,7 @@ async function getContract(){
   console.log(orderhash2);
 }
 // newContract();
-getEvents();
+// getEvents();
 // console.log(Contract_address)
 
 

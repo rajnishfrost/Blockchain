@@ -4,14 +4,14 @@ const Contract_address = conf.networks['97'].address;
 const Contract_ABI = conf.abi;
 const web3 = new Web3(new Web3.providers.HttpProvider("https://data-seed-prebsc-2-s1.binance.org:8545/"));
 const contract = new web3.eth.Contract(Contract_ABI, Contract_address);
-const address = "0x864C42Cce5180b7f48CeaA36672Ea698A8334248";
-const pk = "748d8ac83d9023e2d46f5b4acde8988c3b1bd6a4269172284e9ad326171bbb2d";
+const address = "0x659c55Af1C9035F14C10f5b3765D8469dECB09a8";
+const pk = "658d9dba16bb028dc6b79b8cc2fcda09ad95a33e00622fa1dfbea17227e7c129";
 
 async function newContract(){
     let a = web3.utils.keccak256("rj");
     const nonce = await web3.eth.getTransactionCount(address);
     const gasprice = await web3.eth.getGasPrice();
-    const orderhash2 = await contract.methods.newContract("0xFce453aA73177E63f24530ea106ee75d478a5cb1" , a , "1668664154").encodeABI();
+    const orderhash2 = await contract.methods.newContract("0x4b1f4E927afbA64a826249bBbA405140d093E036" , a , "1670330103").encodeABI();
     const tx= {
         from: address,
         to: Contract_address,

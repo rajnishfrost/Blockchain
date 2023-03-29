@@ -1,0 +1,736 @@
+{
+	"deploy": {
+		"VM:-": {
+			"linkReferences": {},
+			"autoDeployLib": true
+		},
+		"main:1": {
+			"linkReferences": {},
+			"autoDeployLib": true
+		},
+		"ropsten:3": {
+			"linkReferences": {},
+			"autoDeployLib": true
+		},
+		"rinkeby:4": {
+			"linkReferences": {},
+			"autoDeployLib": true
+		},
+		"kovan:42": {
+			"linkReferences": {},
+			"autoDeployLib": true
+		},
+		"goerli:5": {
+			"linkReferences": {},
+			"autoDeployLib": true
+		},
+		"Custom": {
+			"linkReferences": {},
+			"autoDeployLib": true
+		}
+	},
+	"data": {
+		"bytecode": {
+			"functionDebugData": {},
+			"generatedSources": [],
+			"linkReferences": {},
+			"object": "",
+			"opcodes": "",
+			"sourceMap": ""
+		},
+		"deployedBytecode": {
+			"functionDebugData": {},
+			"generatedSources": [],
+			"immutableReferences": {},
+			"linkReferences": {},
+			"object": "",
+			"opcodes": "",
+			"sourceMap": ""
+		},
+		"gasEstimates": null,
+		"methodIdentifiers": {
+			"adminMint(address,uint256)": "e58306f9",
+			"airdropAdminMint(address[],uint256)": "778faeec",
+			"freezeMetadata()": "d111515d",
+			"initialize(string,string,string,string,address,uint16,(uint104,uint32,uint64,uint64,uint64,uint64,bytes32),uint32,uint8,address)": "de4effbd",
+			"payAndMint(uint256)": "1909159a",
+			"purchasePresale(uint256,uint256,uint256,bytes32[])": "25024a2b",
+			"reveal(string)": "4c261247",
+			"setApprovalForAll(address,bool)": "a22cb465",
+			"setBaseURI(string)": "55f804b3",
+			"setContractURI(string)": "938e3d7b",
+			"setPayoutAddress(address)": "33ea51a8",
+			"setRoyalty(uint16)": "36e79a5a",
+			"setSaleConfiguration(uint104,uint32,uint64,uint64,uint64,uint64,bytes32)": "ffdb7163",
+			"updatePreRevealContent(string)": "72c7dbbe",
+			"withdrawETH()": "e086e5ec"
+		}
+	},
+	"abi": [
+		{
+			"inputs": [],
+			"name": "ExceedsAddressBatchMintLimit",
+			"type": "error"
+		},
+		{
+			"inputs": [
+				{
+					"internalType": "uint32",
+					"name": "available",
+					"type": "uint32"
+				}
+			],
+			"name": "ExceedsEditionAvailableSupply",
+			"type": "error"
+		},
+		{
+			"inputs": [],
+			"name": "InvalidPayoutAddress",
+			"type": "error"
+		},
+		{
+			"inputs": [],
+			"name": "InvalidRoyaltyBPS",
+			"type": "error"
+		},
+		{
+			"inputs": [],
+			"name": "MetadataIsFrozen",
+			"type": "error"
+		},
+		{
+			"inputs": [],
+			"name": "Mint_SoldOut",
+			"type": "error"
+		},
+		{
+			"inputs": [],
+			"name": "NoAddressesToAirdrop",
+			"type": "error"
+		},
+		{
+			"inputs": [],
+			"name": "Presale_Inactive",
+			"type": "error"
+		},
+		{
+			"inputs": [],
+			"name": "Presale_MerkleNotApproved",
+			"type": "error"
+		},
+		{
+			"inputs": [],
+			"name": "Presale_TooManyForAddress",
+			"type": "error"
+		},
+		{
+			"inputs": [],
+			"name": "Purchase_TooManyForAddress",
+			"type": "error"
+		},
+		{
+			"inputs": [
+				{
+					"internalType": "uint256",
+					"name": "correctPrice",
+					"type": "uint256"
+				}
+			],
+			"name": "Purchase_WrongPrice",
+			"type": "error"
+		},
+		{
+			"inputs": [],
+			"name": "Sale_Inactive",
+			"type": "error"
+		},
+		{
+			"inputs": [],
+			"name": "WithdrawFundsSendFailure",
+			"type": "error"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": false,
+					"internalType": "address[]",
+					"name": "to",
+					"type": "address[]"
+				},
+				{
+					"indexed": false,
+					"internalType": "uint256",
+					"name": "quantity",
+					"type": "uint256"
+				},
+				{
+					"indexed": false,
+					"internalType": "uint256",
+					"name": "fromTokenId",
+					"type": "uint256"
+				}
+			],
+			"name": "Airdropped",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"internalType": "string",
+					"name": "_baseURI",
+					"type": "string"
+				}
+			],
+			"name": "BaseURISet",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"internalType": "string",
+					"name": "_contractURI",
+					"type": "string"
+				}
+			],
+			"name": "ContractURISet",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"internalType": "address",
+					"name": "withdrawnBy",
+					"type": "address"
+				},
+				{
+					"indexed": true,
+					"internalType": "address",
+					"name": "withdrawnTo",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"internalType": "uint256",
+					"name": "amount",
+					"type": "uint256"
+				},
+				{
+					"indexed": false,
+					"internalType": "address",
+					"name": "feeRecipient",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"internalType": "uint256",
+					"name": "feeAmount",
+					"type": "uint256"
+				}
+			],
+			"name": "FundsWithdrawn",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": false,
+					"internalType": "string",
+					"name": "baseURI",
+					"type": "string"
+				},
+				{
+					"indexed": false,
+					"internalType": "string",
+					"name": "contractURI",
+					"type": "string"
+				}
+			],
+			"name": "MetadataFrozen",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": false,
+					"internalType": "address",
+					"name": "to",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"internalType": "uint256",
+					"name": "quantity",
+					"type": "uint256"
+				},
+				{
+					"indexed": false,
+					"internalType": "uint256",
+					"name": "_firstMintedTokenId",
+					"type": "uint256"
+				}
+			],
+			"name": "Minted",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": false,
+					"internalType": "bool",
+					"name": "operatorFilteringEnabled_",
+					"type": "bool"
+				}
+			],
+			"name": "OperatorFilteringEnablededSet",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": false,
+					"internalType": "address",
+					"name": "payoutAddress",
+					"type": "address"
+				}
+			],
+			"name": "PayoutAddressSet",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": false,
+					"internalType": "uint16",
+					"name": "bps",
+					"type": "uint16"
+				}
+			],
+			"name": "RoyaltySet",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"internalType": "address",
+					"name": "to",
+					"type": "address"
+				},
+				{
+					"indexed": true,
+					"internalType": "uint256",
+					"name": "quantity",
+					"type": "uint256"
+				},
+				{
+					"indexed": true,
+					"internalType": "uint256",
+					"name": "pricePerToken",
+					"type": "uint256"
+				},
+				{
+					"indexed": false,
+					"internalType": "uint256",
+					"name": "firstPurchasedTokenId",
+					"type": "uint256"
+				}
+			],
+			"name": "Sale",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"internalType": "address",
+					"name": "changedBy",
+					"type": "address"
+				}
+			],
+			"name": "SalesConfigChanged",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": false,
+					"internalType": "string",
+					"name": "baseURI",
+					"type": "string"
+				},
+				{
+					"indexed": false,
+					"internalType": "bool",
+					"name": "isRevealed",
+					"type": "bool"
+				}
+			],
+			"name": "URIUpdated",
+			"type": "event"
+		},
+		{
+			"inputs": [
+				{
+					"internalType": "address",
+					"name": "to",
+					"type": "address"
+				},
+				{
+					"internalType": "uint256",
+					"name": "quantity",
+					"type": "uint256"
+				}
+			],
+			"name": "adminMint",
+			"outputs": [
+				{
+					"internalType": "uint256",
+					"name": "_firstMintedTokenId",
+					"type": "uint256"
+				}
+			],
+			"stateMutability": "payable",
+			"type": "function"
+		},
+		{
+			"inputs": [
+				{
+					"internalType": "address[]",
+					"name": "_to",
+					"type": "address[]"
+				},
+				{
+					"internalType": "uint256",
+					"name": "_quantity",
+					"type": "uint256"
+				}
+			],
+			"name": "airdropAdminMint",
+			"outputs": [
+				{
+					"internalType": "uint256",
+					"name": "_firstMintedTokenId",
+					"type": "uint256"
+				}
+			],
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"inputs": [],
+			"name": "freezeMetadata",
+			"outputs": [],
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"inputs": [
+				{
+					"internalType": "string",
+					"name": "name_",
+					"type": "string"
+				},
+				{
+					"internalType": "string",
+					"name": "symbol_",
+					"type": "string"
+				},
+				{
+					"internalType": "string",
+					"name": "baseURI_",
+					"type": "string"
+				},
+				{
+					"internalType": "string",
+					"name": "contractURI_",
+					"type": "string"
+				},
+				{
+					"internalType": "address",
+					"name": "payoutAddress_",
+					"type": "address"
+				},
+				{
+					"internalType": "uint16",
+					"name": "royaltyBPS_",
+					"type": "uint16"
+				},
+				{
+					"components": [
+						{
+							"internalType": "uint104",
+							"name": "publicSalePrice",
+							"type": "uint104"
+						},
+						{
+							"internalType": "uint32",
+							"name": "maxSalePurchasePerAddress",
+							"type": "uint32"
+						},
+						{
+							"internalType": "uint64",
+							"name": "publicSaleStart",
+							"type": "uint64"
+						},
+						{
+							"internalType": "uint64",
+							"name": "publicSaleEnd",
+							"type": "uint64"
+						},
+						{
+							"internalType": "uint64",
+							"name": "presaleStart",
+							"type": "uint64"
+						},
+						{
+							"internalType": "uint64",
+							"name": "presaleEnd",
+							"type": "uint64"
+						},
+						{
+							"internalType": "bytes32",
+							"name": "presaleMerkleRoot",
+							"type": "bytes32"
+						}
+					],
+					"internalType": "struct IERC721TestDrop.SalesConfiguration",
+					"name": "_salesconfig",
+					"type": "tuple"
+				},
+				{
+					"internalType": "uint32",
+					"name": "editionMaxMintable_",
+					"type": "uint32"
+				},
+				{
+					"internalType": "uint8",
+					"name": "flags_",
+					"type": "uint8"
+				},
+				{
+					"internalType": "contract ITestFeeManager",
+					"name": "testFeeManager_",
+					"type": "address"
+				}
+			],
+			"name": "initialize",
+			"outputs": [],
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"inputs": [
+				{
+					"internalType": "uint256",
+					"name": "quantity",
+					"type": "uint256"
+				}
+			],
+			"name": "payAndMint",
+			"outputs": [
+				{
+					"internalType": "uint256",
+					"name": "_firstMintedTokenId",
+					"type": "uint256"
+				}
+			],
+			"stateMutability": "payable",
+			"type": "function"
+		},
+		{
+			"inputs": [
+				{
+					"internalType": "uint256",
+					"name": "quantity",
+					"type": "uint256"
+				},
+				{
+					"internalType": "uint256",
+					"name": "maxQuantity",
+					"type": "uint256"
+				},
+				{
+					"internalType": "uint256",
+					"name": "pricePerToken",
+					"type": "uint256"
+				},
+				{
+					"internalType": "bytes32[]",
+					"name": "merkleProof",
+					"type": "bytes32[]"
+				}
+			],
+			"name": "purchasePresale",
+			"outputs": [
+				{
+					"internalType": "uint256",
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"stateMutability": "payable",
+			"type": "function"
+		},
+		{
+			"inputs": [
+				{
+					"internalType": "string",
+					"name": "baseURI_",
+					"type": "string"
+				}
+			],
+			"name": "reveal",
+			"outputs": [],
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"inputs": [
+				{
+					"internalType": "address",
+					"name": "operator",
+					"type": "address"
+				},
+				{
+					"internalType": "bool",
+					"name": "approved",
+					"type": "bool"
+				}
+			],
+			"name": "setApprovalForAll",
+			"outputs": [],
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"inputs": [
+				{
+					"internalType": "string",
+					"name": "baseURI",
+					"type": "string"
+				}
+			],
+			"name": "setBaseURI",
+			"outputs": [],
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"inputs": [
+				{
+					"internalType": "string",
+					"name": "contractURI",
+					"type": "string"
+				}
+			],
+			"name": "setContractURI",
+			"outputs": [],
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"inputs": [
+				{
+					"internalType": "address",
+					"name": "_payoutAddress",
+					"type": "address"
+				}
+			],
+			"name": "setPayoutAddress",
+			"outputs": [],
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"inputs": [
+				{
+					"internalType": "uint16",
+					"name": "royaltyBPS_",
+					"type": "uint16"
+				}
+			],
+			"name": "setRoyalty",
+			"outputs": [],
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"inputs": [
+				{
+					"internalType": "uint104",
+					"name": "publicSalePrice",
+					"type": "uint104"
+				},
+				{
+					"internalType": "uint32",
+					"name": "maxSalePurchasePerAddress",
+					"type": "uint32"
+				},
+				{
+					"internalType": "uint64",
+					"name": "publicSaleStart",
+					"type": "uint64"
+				},
+				{
+					"internalType": "uint64",
+					"name": "publicSaleEnd",
+					"type": "uint64"
+				},
+				{
+					"internalType": "uint64",
+					"name": "presaleStart",
+					"type": "uint64"
+				},
+				{
+					"internalType": "uint64",
+					"name": "presaleEnd",
+					"type": "uint64"
+				},
+				{
+					"internalType": "bytes32",
+					"name": "presaleMerkleRoot",
+					"type": "bytes32"
+				}
+			],
+			"name": "setSaleConfiguration",
+			"outputs": [],
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"inputs": [
+				{
+					"internalType": "string",
+					"name": "baseURI_",
+					"type": "string"
+				}
+			],
+			"name": "updatePreRevealContent",
+			"outputs": [],
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"inputs": [],
+			"name": "withdrawETH",
+			"outputs": [],
+			"stateMutability": "nonpayable",
+			"type": "function"
+		}
+	]
+}

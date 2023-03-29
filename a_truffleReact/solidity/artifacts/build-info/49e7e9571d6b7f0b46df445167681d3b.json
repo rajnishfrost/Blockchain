@@ -1,0 +1,862 @@
+{
+	"id": "49e7e9571d6b7f0b46df445167681d3b",
+	"_format": "hh-sol-build-info-1",
+	"solcVersion": "0.8.19",
+	"solcLongVersion": "0.8.19+commit.7dd6d404",
+	"input": {
+		"language": "Solidity",
+		"sources": {
+			"ITestFeeManager.sol": {
+				"content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.16;\n\n/**\n * @title ITestFeeManager\n * @author https://github.com/chirag-bgh\n */\ninterface ITestFeeManager {\n    /**\n     * @dev Emitted when the `testFeeAddress` is changed.\n     */\n    event TestFeeAddressSet(address testFeeAddress);\n\n    /**\n     * @dev Emitted when the `platformFeeBPS` is changed.\n     */\n    event PlatformFeeSet(uint16 platformFeeBPS);\n\n    /**\n     * @dev The new `testFeeAddress` must not be address(0).\n     */\n    error InvalidTestFeeAddress();\n\n    /**\n     * @dev The platform fee numerator must not exceed `_MAX_BPS`.\n     */\n    error InvalidPlatformFeeBPS();\n\n    /**\n     * @dev Sets the `testFeeAddress`.\n     *\n     * Calling conditions:\n     * - The caller must be the owner of the contract.\n     *\n     * @param testFeeAddress_ The test fee address.\n     */\n    function setTestFeeAddress(address testFeeAddress_) external;\n\n    /**\n     * @dev Sets the `platformFeePBS`.\n     *\n     * Calling conditions:\n     * - The caller must be the owner of the contract.\n     *\n     * @param platformFeeBPS_ Platform fee amount in bps (basis points).\n     */\n    function setPlatformFeeBPS(uint16 platformFeeBPS_) external;\n\n    /**\n    \n     */\n\n    function getTestFeeManager() external view returns (address);\n\n    /**\n     * @dev The protocol's address that receives platform fees.\n     * @return The configured value.\n     */\n    function testFeeAddress() external view returns (address);\n\n    /**\n     * @dev The numerator of the platform fee.\n     * @return The configured value.\n     */\n    function platformFeeBPS() external view returns (uint16);\n\n    /**\n     * @dev The platform fee for `requiredEtherValue`.\n     * @param requiredEtherValue The required Ether value for payment.\n     * @return fee The computed value.\n     */\n    function platformFee(uint128 requiredEtherValue)\n        external\n        view\n        returns (uint128 fee);\n}\n"
+			}
+		},
+		"settings": {
+			"optimizer": {
+				"enabled": false,
+				"runs": 200
+			},
+			"outputSelection": {
+				"*": {
+					"": [
+						"ast"
+					],
+					"*": [
+						"abi",
+						"metadata",
+						"devdoc",
+						"userdoc",
+						"storageLayout",
+						"evm.legacyAssembly",
+						"evm.bytecode",
+						"evm.deployedBytecode",
+						"evm.methodIdentifiers",
+						"evm.gasEstimates",
+						"evm.assembly"
+					]
+				}
+			}
+		}
+	},
+	"output": {
+		"contracts": {
+			"ITestFeeManager.sol": {
+				"ITestFeeManager": {
+					"abi": [
+						{
+							"inputs": [],
+							"name": "InvalidPlatformFeeBPS",
+							"type": "error"
+						},
+						{
+							"inputs": [],
+							"name": "InvalidTestFeeAddress",
+							"type": "error"
+						},
+						{
+							"anonymous": false,
+							"inputs": [
+								{
+									"indexed": false,
+									"internalType": "uint16",
+									"name": "platformFeeBPS",
+									"type": "uint16"
+								}
+							],
+							"name": "PlatformFeeSet",
+							"type": "event"
+						},
+						{
+							"anonymous": false,
+							"inputs": [
+								{
+									"indexed": false,
+									"internalType": "address",
+									"name": "testFeeAddress",
+									"type": "address"
+								}
+							],
+							"name": "TestFeeAddressSet",
+							"type": "event"
+						},
+						{
+							"inputs": [],
+							"name": "getTestFeeManager",
+							"outputs": [
+								{
+									"internalType": "address",
+									"name": "",
+									"type": "address"
+								}
+							],
+							"stateMutability": "view",
+							"type": "function"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "uint128",
+									"name": "requiredEtherValue",
+									"type": "uint128"
+								}
+							],
+							"name": "platformFee",
+							"outputs": [
+								{
+									"internalType": "uint128",
+									"name": "fee",
+									"type": "uint128"
+								}
+							],
+							"stateMutability": "view",
+							"type": "function"
+						},
+						{
+							"inputs": [],
+							"name": "platformFeeBPS",
+							"outputs": [
+								{
+									"internalType": "uint16",
+									"name": "",
+									"type": "uint16"
+								}
+							],
+							"stateMutability": "view",
+							"type": "function"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "uint16",
+									"name": "platformFeeBPS_",
+									"type": "uint16"
+								}
+							],
+							"name": "setPlatformFeeBPS",
+							"outputs": [],
+							"stateMutability": "nonpayable",
+							"type": "function"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "address",
+									"name": "testFeeAddress_",
+									"type": "address"
+								}
+							],
+							"name": "setTestFeeAddress",
+							"outputs": [],
+							"stateMutability": "nonpayable",
+							"type": "function"
+						},
+						{
+							"inputs": [],
+							"name": "testFeeAddress",
+							"outputs": [
+								{
+									"internalType": "address",
+									"name": "",
+									"type": "address"
+								}
+							],
+							"stateMutability": "view",
+							"type": "function"
+						}
+					],
+					"devdoc": {
+						"author": "https://github.com/chirag-bgh",
+						"errors": {
+							"InvalidPlatformFeeBPS()": [
+								{
+									"details": "The platform fee numerator must not exceed `_MAX_BPS`."
+								}
+							],
+							"InvalidTestFeeAddress()": [
+								{
+									"details": "The new `testFeeAddress` must not be address(0)."
+								}
+							]
+						},
+						"events": {
+							"PlatformFeeSet(uint16)": {
+								"details": "Emitted when the `platformFeeBPS` is changed."
+							},
+							"TestFeeAddressSet(address)": {
+								"details": "Emitted when the `testFeeAddress` is changed."
+							}
+						},
+						"kind": "dev",
+						"methods": {
+							"platformFee(uint128)": {
+								"details": "The platform fee for `requiredEtherValue`.",
+								"params": {
+									"requiredEtherValue": "The required Ether value for payment."
+								},
+								"returns": {
+									"fee": "The computed value."
+								}
+							},
+							"platformFeeBPS()": {
+								"details": "The numerator of the platform fee.",
+								"returns": {
+									"_0": "The configured value."
+								}
+							},
+							"setPlatformFeeBPS(uint16)": {
+								"details": "Sets the `platformFeePBS`. Calling conditions: - The caller must be the owner of the contract.",
+								"params": {
+									"platformFeeBPS_": "Platform fee amount in bps (basis points)."
+								}
+							},
+							"setTestFeeAddress(address)": {
+								"details": "Sets the `testFeeAddress`. Calling conditions: - The caller must be the owner of the contract.",
+								"params": {
+									"testFeeAddress_": "The test fee address."
+								}
+							},
+							"testFeeAddress()": {
+								"details": "The protocol's address that receives platform fees.",
+								"returns": {
+									"_0": "The configured value."
+								}
+							}
+						},
+						"title": "ITestFeeManager",
+						"version": 1
+					},
+					"evm": {
+						"assembly": "",
+						"bytecode": {
+							"functionDebugData": {},
+							"generatedSources": [],
+							"linkReferences": {},
+							"object": "",
+							"opcodes": "",
+							"sourceMap": ""
+						},
+						"deployedBytecode": {
+							"functionDebugData": {},
+							"generatedSources": [],
+							"immutableReferences": {},
+							"linkReferences": {},
+							"object": "",
+							"opcodes": "",
+							"sourceMap": ""
+						},
+						"gasEstimates": null,
+						"legacyAssembly": null,
+						"methodIdentifiers": {
+							"getTestFeeManager()": "e714942d",
+							"platformFee(uint128)": "0d411b21",
+							"platformFeeBPS()": "ebaaa3a1",
+							"setPlatformFeeBPS(uint16)": "193fd903",
+							"setTestFeeAddress(address)": "f24b9141",
+							"testFeeAddress()": "bfcf0a9e"
+						}
+					},
+					"metadata": "{\"compiler\":{\"version\":\"0.8.19+commit.7dd6d404\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"InvalidPlatformFeeBPS\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidTestFeeAddress\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint16\",\"name\":\"platformFeeBPS\",\"type\":\"uint16\"}],\"name\":\"PlatformFeeSet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"testFeeAddress\",\"type\":\"address\"}],\"name\":\"TestFeeAddressSet\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"getTestFeeManager\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint128\",\"name\":\"requiredEtherValue\",\"type\":\"uint128\"}],\"name\":\"platformFee\",\"outputs\":[{\"internalType\":\"uint128\",\"name\":\"fee\",\"type\":\"uint128\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"platformFeeBPS\",\"outputs\":[{\"internalType\":\"uint16\",\"name\":\"\",\"type\":\"uint16\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint16\",\"name\":\"platformFeeBPS_\",\"type\":\"uint16\"}],\"name\":\"setPlatformFeeBPS\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"testFeeAddress_\",\"type\":\"address\"}],\"name\":\"setTestFeeAddress\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"testFeeAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"author\":\"https://github.com/chirag-bgh\",\"errors\":{\"InvalidPlatformFeeBPS()\":[{\"details\":\"The platform fee numerator must not exceed `_MAX_BPS`.\"}],\"InvalidTestFeeAddress()\":[{\"details\":\"The new `testFeeAddress` must not be address(0).\"}]},\"events\":{\"PlatformFeeSet(uint16)\":{\"details\":\"Emitted when the `platformFeeBPS` is changed.\"},\"TestFeeAddressSet(address)\":{\"details\":\"Emitted when the `testFeeAddress` is changed.\"}},\"kind\":\"dev\",\"methods\":{\"platformFee(uint128)\":{\"details\":\"The platform fee for `requiredEtherValue`.\",\"params\":{\"requiredEtherValue\":\"The required Ether value for payment.\"},\"returns\":{\"fee\":\"The computed value.\"}},\"platformFeeBPS()\":{\"details\":\"The numerator of the platform fee.\",\"returns\":{\"_0\":\"The configured value.\"}},\"setPlatformFeeBPS(uint16)\":{\"details\":\"Sets the `platformFeePBS`. Calling conditions: - The caller must be the owner of the contract.\",\"params\":{\"platformFeeBPS_\":\"Platform fee amount in bps (basis points).\"}},\"setTestFeeAddress(address)\":{\"details\":\"Sets the `testFeeAddress`. Calling conditions: - The caller must be the owner of the contract.\",\"params\":{\"testFeeAddress_\":\"The test fee address.\"}},\"testFeeAddress()\":{\"details\":\"The protocol's address that receives platform fees.\",\"returns\":{\"_0\":\"The configured value.\"}}},\"title\":\"ITestFeeManager\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"ITestFeeManager.sol\":\"ITestFeeManager\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":false,\"runs\":200},\"remappings\":[]},\"sources\":{\"ITestFeeManager.sol\":{\"keccak256\":\"0x1893cd08b03c6c02365141c6df0e23a39ff749b05bde2a9d3c5aee78a4de7e5b\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://7eee19d9483c63cfc1988e21d1d51958a2ee0ae64d7c7ac2cf80a1430370fa9a\",\"dweb:/ipfs/QmNVLipCNf41TZzSoC1GFiNfqGq3oigeHkWy5rULEysQtM\"]}},\"version\":1}",
+					"storageLayout": {
+						"storage": [],
+						"types": null
+					},
+					"userdoc": {
+						"kind": "user",
+						"methods": {},
+						"version": 1
+					}
+				}
+			}
+		},
+		"sources": {
+			"ITestFeeManager.sol": {
+				"ast": {
+					"absolutePath": "ITestFeeManager.sol",
+					"exportedSymbols": {
+						"ITestFeeManager": [
+							56
+						]
+					},
+					"id": 57,
+					"license": "MIT",
+					"nodeType": "SourceUnit",
+					"nodes": [
+						{
+							"id": 1,
+							"literals": [
+								"solidity",
+								"^",
+								"0.8",
+								".16"
+							],
+							"nodeType": "PragmaDirective",
+							"src": "32:24:0"
+						},
+						{
+							"abstract": false,
+							"baseContracts": [],
+							"canonicalName": "ITestFeeManager",
+							"contractDependencies": [],
+							"contractKind": "interface",
+							"documentation": {
+								"id": 2,
+								"nodeType": "StructuredDocumentation",
+								"src": "58:74:0",
+								"text": " @title ITestFeeManager\n @author https://github.com/chirag-bgh"
+							},
+							"fullyImplemented": false,
+							"id": 56,
+							"linearizedBaseContracts": [
+								56
+							],
+							"name": "ITestFeeManager",
+							"nameLocation": "143:15:0",
+							"nodeType": "ContractDefinition",
+							"nodes": [
+								{
+									"anonymous": false,
+									"documentation": {
+										"id": 3,
+										"nodeType": "StructuredDocumentation",
+										"src": "165:69:0",
+										"text": " @dev Emitted when the `testFeeAddress` is changed."
+									},
+									"eventSelector": "adf209bc61580fb62a9356bed67b959397b4a091fe79ec4b5d6dfc62f1ee05cf",
+									"id": 7,
+									"name": "TestFeeAddressSet",
+									"nameLocation": "245:17:0",
+									"nodeType": "EventDefinition",
+									"parameters": {
+										"id": 6,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 5,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "testFeeAddress",
+												"nameLocation": "271:14:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 7,
+												"src": "263:22:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 4,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "263:7:0",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "262:24:0"
+									},
+									"src": "239:48:0"
+								},
+								{
+									"anonymous": false,
+									"documentation": {
+										"id": 8,
+										"nodeType": "StructuredDocumentation",
+										"src": "293:69:0",
+										"text": " @dev Emitted when the `platformFeeBPS` is changed."
+									},
+									"eventSelector": "1426859b6b96e2e9ae302b23a42f763f4b0ae916a71a093e61c77120458b2e95",
+									"id": 12,
+									"name": "PlatformFeeSet",
+									"nameLocation": "373:14:0",
+									"nodeType": "EventDefinition",
+									"parameters": {
+										"id": 11,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 10,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "platformFeeBPS",
+												"nameLocation": "395:14:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 12,
+												"src": "388:21:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint16",
+													"typeString": "uint16"
+												},
+												"typeName": {
+													"id": 9,
+													"name": "uint16",
+													"nodeType": "ElementaryTypeName",
+													"src": "388:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint16",
+														"typeString": "uint16"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "387:23:0"
+									},
+									"src": "367:44:0"
+								},
+								{
+									"documentation": {
+										"id": 13,
+										"nodeType": "StructuredDocumentation",
+										"src": "417:72:0",
+										"text": " @dev The new `testFeeAddress` must not be address(0)."
+									},
+									"errorSelector": "3d0e4bb7",
+									"id": 15,
+									"name": "InvalidTestFeeAddress",
+									"nameLocation": "500:21:0",
+									"nodeType": "ErrorDefinition",
+									"parameters": {
+										"id": 14,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "521:2:0"
+									},
+									"src": "494:30:0"
+								},
+								{
+									"documentation": {
+										"id": 16,
+										"nodeType": "StructuredDocumentation",
+										"src": "530:78:0",
+										"text": " @dev The platform fee numerator must not exceed `_MAX_BPS`."
+									},
+									"errorSelector": "3d1e8584",
+									"id": 18,
+									"name": "InvalidPlatformFeeBPS",
+									"nameLocation": "619:21:0",
+									"nodeType": "ErrorDefinition",
+									"parameters": {
+										"id": 17,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "640:2:0"
+									},
+									"src": "613:30:0"
+								},
+								{
+									"documentation": {
+										"id": 19,
+										"nodeType": "StructuredDocumentation",
+										"src": "649:198:0",
+										"text": " @dev Sets the `testFeeAddress`.\n Calling conditions:\n - The caller must be the owner of the contract.\n @param testFeeAddress_ The test fee address."
+									},
+									"functionSelector": "f24b9141",
+									"id": 24,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "setTestFeeAddress",
+									"nameLocation": "861:17:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 22,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 21,
+												"mutability": "mutable",
+												"name": "testFeeAddress_",
+												"nameLocation": "887:15:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 24,
+												"src": "879:23:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 20,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "879:7:0",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "878:25:0"
+									},
+									"returnParameters": {
+										"id": 23,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "912:0:0"
+									},
+									"scope": 56,
+									"src": "852:61:0",
+									"stateMutability": "nonpayable",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"documentation": {
+										"id": 25,
+										"nodeType": "StructuredDocumentation",
+										"src": "919:219:0",
+										"text": " @dev Sets the `platformFeePBS`.\n Calling conditions:\n - The caller must be the owner of the contract.\n @param platformFeeBPS_ Platform fee amount in bps (basis points)."
+									},
+									"functionSelector": "193fd903",
+									"id": 30,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "setPlatformFeeBPS",
+									"nameLocation": "1152:17:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 28,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 27,
+												"mutability": "mutable",
+												"name": "platformFeeBPS_",
+												"nameLocation": "1177:15:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 30,
+												"src": "1170:22:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint16",
+													"typeString": "uint16"
+												},
+												"typeName": {
+													"id": 26,
+													"name": "uint16",
+													"nodeType": "ElementaryTypeName",
+													"src": "1170:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint16",
+														"typeString": "uint16"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "1169:24:0"
+									},
+									"returnParameters": {
+										"id": 29,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "1202:0:0"
+									},
+									"scope": 56,
+									"src": "1143:60:0",
+									"stateMutability": "nonpayable",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"functionSelector": "e714942d",
+									"id": 35,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "getTestFeeManager",
+									"nameLocation": "1240:17:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 31,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "1257:2:0"
+									},
+									"returnParameters": {
+										"id": 34,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 33,
+												"mutability": "mutable",
+												"name": "",
+												"nameLocation": "-1:-1:-1",
+												"nodeType": "VariableDeclaration",
+												"scope": 35,
+												"src": "1283:7:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 32,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "1283:7:0",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "1282:9:0"
+									},
+									"scope": 56,
+									"src": "1231:61:0",
+									"stateMutability": "view",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"documentation": {
+										"id": 36,
+										"nodeType": "StructuredDocumentation",
+										"src": "1298:112:0",
+										"text": " @dev The protocol's address that receives platform fees.\n @return The configured value."
+									},
+									"functionSelector": "bfcf0a9e",
+									"id": 41,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "testFeeAddress",
+									"nameLocation": "1424:14:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 37,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "1438:2:0"
+									},
+									"returnParameters": {
+										"id": 40,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 39,
+												"mutability": "mutable",
+												"name": "",
+												"nameLocation": "-1:-1:-1",
+												"nodeType": "VariableDeclaration",
+												"scope": 41,
+												"src": "1464:7:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 38,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "1464:7:0",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "1463:9:0"
+									},
+									"scope": 56,
+									"src": "1415:58:0",
+									"stateMutability": "view",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"documentation": {
+										"id": 42,
+										"nodeType": "StructuredDocumentation",
+										"src": "1479:95:0",
+										"text": " @dev The numerator of the platform fee.\n @return The configured value."
+									},
+									"functionSelector": "ebaaa3a1",
+									"id": 47,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "platformFeeBPS",
+									"nameLocation": "1588:14:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 43,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "1602:2:0"
+									},
+									"returnParameters": {
+										"id": 46,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 45,
+												"mutability": "mutable",
+												"name": "",
+												"nameLocation": "-1:-1:-1",
+												"nodeType": "VariableDeclaration",
+												"scope": 47,
+												"src": "1628:6:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint16",
+													"typeString": "uint16"
+												},
+												"typeName": {
+													"id": 44,
+													"name": "uint16",
+													"nodeType": "ElementaryTypeName",
+													"src": "1628:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint16",
+														"typeString": "uint16"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "1627:8:0"
+									},
+									"scope": 56,
+									"src": "1579:57:0",
+									"stateMutability": "view",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"documentation": {
+										"id": 48,
+										"nodeType": "StructuredDocumentation",
+										"src": "1642:176:0",
+										"text": " @dev The platform fee for `requiredEtherValue`.\n @param requiredEtherValue The required Ether value for payment.\n @return fee The computed value."
+									},
+									"functionSelector": "0d411b21",
+									"id": 55,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "platformFee",
+									"nameLocation": "1832:11:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 51,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 50,
+												"mutability": "mutable",
+												"name": "requiredEtherValue",
+												"nameLocation": "1852:18:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 55,
+												"src": "1844:26:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint128",
+													"typeString": "uint128"
+												},
+												"typeName": {
+													"id": 49,
+													"name": "uint128",
+													"nodeType": "ElementaryTypeName",
+													"src": "1844:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint128",
+														"typeString": "uint128"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "1843:28:0"
+									},
+									"returnParameters": {
+										"id": 54,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 53,
+												"mutability": "mutable",
+												"name": "fee",
+												"nameLocation": "1927:3:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 55,
+												"src": "1919:11:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint128",
+													"typeString": "uint128"
+												},
+												"typeName": {
+													"id": 52,
+													"name": "uint128",
+													"nodeType": "ElementaryTypeName",
+													"src": "1919:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint128",
+														"typeString": "uint128"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "1918:13:0"
+									},
+									"scope": 56,
+									"src": "1823:109:0",
+									"stateMutability": "view",
+									"virtual": false,
+									"visibility": "external"
+								}
+							],
+							"scope": 57,
+							"src": "133:1801:0",
+							"usedErrors": [
+								15,
+								18
+							]
+						}
+					],
+					"src": "32:1903:0"
+				},
+				"id": 0
+			}
+		}
+	}
+}

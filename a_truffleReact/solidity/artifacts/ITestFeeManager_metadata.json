@@ -1,0 +1,222 @@
+{
+	"compiler": {
+		"version": "0.8.19+commit.7dd6d404"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"inputs": [],
+				"name": "InvalidPlatformFeeBPS",
+				"type": "error"
+			},
+			{
+				"inputs": [],
+				"name": "InvalidTestFeeAddress",
+				"type": "error"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "uint16",
+						"name": "platformFeeBPS",
+						"type": "uint16"
+					}
+				],
+				"name": "PlatformFeeSet",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "address",
+						"name": "testFeeAddress",
+						"type": "address"
+					}
+				],
+				"name": "TestFeeAddressSet",
+				"type": "event"
+			},
+			{
+				"inputs": [],
+				"name": "getTestFeeManager",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint128",
+						"name": "requiredEtherValue",
+						"type": "uint128"
+					}
+				],
+				"name": "platformFee",
+				"outputs": [
+					{
+						"internalType": "uint128",
+						"name": "fee",
+						"type": "uint128"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "platformFeeBPS",
+				"outputs": [
+					{
+						"internalType": "uint16",
+						"name": "",
+						"type": "uint16"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint16",
+						"name": "platformFeeBPS_",
+						"type": "uint16"
+					}
+				],
+				"name": "setPlatformFeeBPS",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "testFeeAddress_",
+						"type": "address"
+					}
+				],
+				"name": "setTestFeeAddress",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "testFeeAddress",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"author": "https://github.com/chirag-bgh",
+			"errors": {
+				"InvalidPlatformFeeBPS()": [
+					{
+						"details": "The platform fee numerator must not exceed `_MAX_BPS`."
+					}
+				],
+				"InvalidTestFeeAddress()": [
+					{
+						"details": "The new `testFeeAddress` must not be address(0)."
+					}
+				]
+			},
+			"events": {
+				"PlatformFeeSet(uint16)": {
+					"details": "Emitted when the `platformFeeBPS` is changed."
+				},
+				"TestFeeAddressSet(address)": {
+					"details": "Emitted when the `testFeeAddress` is changed."
+				}
+			},
+			"kind": "dev",
+			"methods": {
+				"platformFee(uint128)": {
+					"details": "The platform fee for `requiredEtherValue`.",
+					"params": {
+						"requiredEtherValue": "The required Ether value for payment."
+					},
+					"returns": {
+						"fee": "The computed value."
+					}
+				},
+				"platformFeeBPS()": {
+					"details": "The numerator of the platform fee.",
+					"returns": {
+						"_0": "The configured value."
+					}
+				},
+				"setPlatformFeeBPS(uint16)": {
+					"details": "Sets the `platformFeePBS`. Calling conditions: - The caller must be the owner of the contract.",
+					"params": {
+						"platformFeeBPS_": "Platform fee amount in bps (basis points)."
+					}
+				},
+				"setTestFeeAddress(address)": {
+					"details": "Sets the `testFeeAddress`. Calling conditions: - The caller must be the owner of the contract.",
+					"params": {
+						"testFeeAddress_": "The test fee address."
+					}
+				},
+				"testFeeAddress()": {
+					"details": "The protocol's address that receives platform fees.",
+					"returns": {
+						"_0": "The configured value."
+					}
+				}
+			},
+			"title": "ITestFeeManager",
+			"version": 1
+		},
+		"userdoc": {
+			"kind": "user",
+			"methods": {},
+			"version": 1
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"ITestFeeManager.sol": "ITestFeeManager"
+		},
+		"evmVersion": "paris",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"ITestFeeManager.sol": {
+			"keccak256": "0x1893cd08b03c6c02365141c6df0e23a39ff749b05bde2a9d3c5aee78a4de7e5b",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://7eee19d9483c63cfc1988e21d1d51958a2ee0ae64d7c7ac2cf80a1430370fa9a",
+				"dweb:/ipfs/QmNVLipCNf41TZzSoC1GFiNfqGq3oigeHkWy5rULEysQtM"
+			]
+		}
+	},
+	"version": 1
+}

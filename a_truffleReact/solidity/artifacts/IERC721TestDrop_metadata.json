@@ -1,0 +1,885 @@
+{
+	"compiler": {
+		"version": "0.8.19+commit.7dd6d404"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"inputs": [],
+				"name": "ExceedsAddressBatchMintLimit",
+				"type": "error"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint32",
+						"name": "available",
+						"type": "uint32"
+					}
+				],
+				"name": "ExceedsEditionAvailableSupply",
+				"type": "error"
+			},
+			{
+				"inputs": [],
+				"name": "InvalidPayoutAddress",
+				"type": "error"
+			},
+			{
+				"inputs": [],
+				"name": "InvalidRoyaltyBPS",
+				"type": "error"
+			},
+			{
+				"inputs": [],
+				"name": "MetadataIsFrozen",
+				"type": "error"
+			},
+			{
+				"inputs": [],
+				"name": "Mint_SoldOut",
+				"type": "error"
+			},
+			{
+				"inputs": [],
+				"name": "NoAddressesToAirdrop",
+				"type": "error"
+			},
+			{
+				"inputs": [],
+				"name": "Presale_Inactive",
+				"type": "error"
+			},
+			{
+				"inputs": [],
+				"name": "Presale_MerkleNotApproved",
+				"type": "error"
+			},
+			{
+				"inputs": [],
+				"name": "Presale_TooManyForAddress",
+				"type": "error"
+			},
+			{
+				"inputs": [],
+				"name": "Purchase_TooManyForAddress",
+				"type": "error"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "correctPrice",
+						"type": "uint256"
+					}
+				],
+				"name": "Purchase_WrongPrice",
+				"type": "error"
+			},
+			{
+				"inputs": [],
+				"name": "Sale_Inactive",
+				"type": "error"
+			},
+			{
+				"inputs": [],
+				"name": "WithdrawFundsSendFailure",
+				"type": "error"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "address[]",
+						"name": "to",
+						"type": "address[]"
+					},
+					{
+						"indexed": false,
+						"internalType": "uint256",
+						"name": "quantity",
+						"type": "uint256"
+					},
+					{
+						"indexed": false,
+						"internalType": "uint256",
+						"name": "fromTokenId",
+						"type": "uint256"
+					}
+				],
+				"name": "Airdropped",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "string",
+						"name": "_baseURI",
+						"type": "string"
+					}
+				],
+				"name": "BaseURISet",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "string",
+						"name": "_contractURI",
+						"type": "string"
+					}
+				],
+				"name": "ContractURISet",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "withdrawnBy",
+						"type": "address"
+					},
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "withdrawnTo",
+						"type": "address"
+					},
+					{
+						"indexed": false,
+						"internalType": "uint256",
+						"name": "amount",
+						"type": "uint256"
+					},
+					{
+						"indexed": false,
+						"internalType": "address",
+						"name": "feeRecipient",
+						"type": "address"
+					},
+					{
+						"indexed": false,
+						"internalType": "uint256",
+						"name": "feeAmount",
+						"type": "uint256"
+					}
+				],
+				"name": "FundsWithdrawn",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "baseURI",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "contractURI",
+						"type": "string"
+					}
+				],
+				"name": "MetadataFrozen",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "address",
+						"name": "to",
+						"type": "address"
+					},
+					{
+						"indexed": false,
+						"internalType": "uint256",
+						"name": "quantity",
+						"type": "uint256"
+					},
+					{
+						"indexed": false,
+						"internalType": "uint256",
+						"name": "_firstMintedTokenId",
+						"type": "uint256"
+					}
+				],
+				"name": "Minted",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "bool",
+						"name": "operatorFilteringEnabled_",
+						"type": "bool"
+					}
+				],
+				"name": "OperatorFilteringEnablededSet",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "address",
+						"name": "payoutAddress",
+						"type": "address"
+					}
+				],
+				"name": "PayoutAddressSet",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "uint16",
+						"name": "bps",
+						"type": "uint16"
+					}
+				],
+				"name": "RoyaltySet",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "to",
+						"type": "address"
+					},
+					{
+						"indexed": true,
+						"internalType": "uint256",
+						"name": "quantity",
+						"type": "uint256"
+					},
+					{
+						"indexed": true,
+						"internalType": "uint256",
+						"name": "pricePerToken",
+						"type": "uint256"
+					},
+					{
+						"indexed": false,
+						"internalType": "uint256",
+						"name": "firstPurchasedTokenId",
+						"type": "uint256"
+					}
+				],
+				"name": "Sale",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "changedBy",
+						"type": "address"
+					}
+				],
+				"name": "SalesConfigChanged",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "baseURI",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "bool",
+						"name": "isRevealed",
+						"type": "bool"
+					}
+				],
+				"name": "URIUpdated",
+				"type": "event"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "to",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "quantity",
+						"type": "uint256"
+					}
+				],
+				"name": "adminMint",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "_firstMintedTokenId",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "payable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address[]",
+						"name": "_to",
+						"type": "address[]"
+					},
+					{
+						"internalType": "uint256",
+						"name": "_quantity",
+						"type": "uint256"
+					}
+				],
+				"name": "airdropAdminMint",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "_firstMintedTokenId",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "freezeMetadata",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "name_",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "symbol_",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "baseURI_",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "contractURI_",
+						"type": "string"
+					},
+					{
+						"internalType": "address",
+						"name": "payoutAddress_",
+						"type": "address"
+					},
+					{
+						"internalType": "uint16",
+						"name": "royaltyBPS_",
+						"type": "uint16"
+					},
+					{
+						"components": [
+							{
+								"internalType": "uint104",
+								"name": "publicSalePrice",
+								"type": "uint104"
+							},
+							{
+								"internalType": "uint32",
+								"name": "maxSalePurchasePerAddress",
+								"type": "uint32"
+							},
+							{
+								"internalType": "uint64",
+								"name": "publicSaleStart",
+								"type": "uint64"
+							},
+							{
+								"internalType": "uint64",
+								"name": "publicSaleEnd",
+								"type": "uint64"
+							},
+							{
+								"internalType": "uint64",
+								"name": "presaleStart",
+								"type": "uint64"
+							},
+							{
+								"internalType": "uint64",
+								"name": "presaleEnd",
+								"type": "uint64"
+							},
+							{
+								"internalType": "bytes32",
+								"name": "presaleMerkleRoot",
+								"type": "bytes32"
+							}
+						],
+						"internalType": "struct IERC721TestDrop.SalesConfiguration",
+						"name": "_salesconfig",
+						"type": "tuple"
+					},
+					{
+						"internalType": "uint32",
+						"name": "editionMaxMintable_",
+						"type": "uint32"
+					},
+					{
+						"internalType": "uint8",
+						"name": "flags_",
+						"type": "uint8"
+					},
+					{
+						"internalType": "contract ITestFeeManager",
+						"name": "testFeeManager_",
+						"type": "address"
+					}
+				],
+				"name": "initialize",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "quantity",
+						"type": "uint256"
+					}
+				],
+				"name": "payAndMint",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "_firstMintedTokenId",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "payable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "quantity",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "maxQuantity",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "pricePerToken",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bytes32[]",
+						"name": "merkleProof",
+						"type": "bytes32[]"
+					}
+				],
+				"name": "purchasePresale",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "payable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "baseURI_",
+						"type": "string"
+					}
+				],
+				"name": "reveal",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "operator",
+						"type": "address"
+					},
+					{
+						"internalType": "bool",
+						"name": "approved",
+						"type": "bool"
+					}
+				],
+				"name": "setApprovalForAll",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "baseURI",
+						"type": "string"
+					}
+				],
+				"name": "setBaseURI",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "contractURI",
+						"type": "string"
+					}
+				],
+				"name": "setContractURI",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "_payoutAddress",
+						"type": "address"
+					}
+				],
+				"name": "setPayoutAddress",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint16",
+						"name": "royaltyBPS_",
+						"type": "uint16"
+					}
+				],
+				"name": "setRoyalty",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint104",
+						"name": "publicSalePrice",
+						"type": "uint104"
+					},
+					{
+						"internalType": "uint32",
+						"name": "maxSalePurchasePerAddress",
+						"type": "uint32"
+					},
+					{
+						"internalType": "uint64",
+						"name": "publicSaleStart",
+						"type": "uint64"
+					},
+					{
+						"internalType": "uint64",
+						"name": "publicSaleEnd",
+						"type": "uint64"
+					},
+					{
+						"internalType": "uint64",
+						"name": "presaleStart",
+						"type": "uint64"
+					},
+					{
+						"internalType": "uint64",
+						"name": "presaleEnd",
+						"type": "uint64"
+					},
+					{
+						"internalType": "bytes32",
+						"name": "presaleMerkleRoot",
+						"type": "bytes32"
+					}
+				],
+				"name": "setSaleConfiguration",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "baseURI_",
+						"type": "string"
+					}
+				],
+				"name": "updatePreRevealContent",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "withdrawETH",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"details": "Interface for ERC721TestDrop.sol",
+			"errors": {
+				"ExceedsAddressBatchMintLimit()": [
+					{
+						"details": "The mint `quantity` cannot exceed `ADDRESS_BATCH_MINT_LIMIT` tokens."
+					}
+				],
+				"ExceedsEditionAvailableSupply(uint32)": [
+					{
+						"details": "The requested quantity exceeds the edition's remaining mintable token quantity.",
+						"params": {
+							"available": "The number of tokens remaining available for mint."
+						}
+					}
+				],
+				"InvalidPayoutAddress()": [
+					{
+						"details": "The given `InvalidPayoutAddress` address is invalid."
+					}
+				],
+				"InvalidRoyaltyBPS()": [
+					{
+						"details": "The given `royaltyBPS` is invalid."
+					}
+				],
+				"MetadataIsFrozen()": [
+					{
+						"details": "The edition's metadata is frozen (e.g.: `baseURI` can no longer be changed)."
+					}
+				],
+				"NoAddressesToAirdrop()": [
+					{
+						"details": "No addresses to airdrop."
+					}
+				]
+			},
+			"events": {
+				"Airdropped(address[],uint256,uint256)": {
+					"details": "Emitted upon an airdrop.",
+					"params": {
+						"fromTokenId": "The first token ID minted to the first address in `to`.",
+						"quantity": "The number of tokens airdropped to each address in `to`.",
+						"to": "The recipients of the airdrop."
+					}
+				},
+				"FundsWithdrawn(address,address,uint256,address,uint256)": {
+					"params": {
+						"amount": "amount that was withdrawn",
+						"feeAmount": "amount of the fee getting sent (if any)",
+						"feeRecipient": "user getting withdraw fee (if any)",
+						"withdrawnBy": "address that issued the withdraw",
+						"withdrawnTo": "address that the funds were withdrawn to"
+					}
+				},
+				"MetadataFrozen(string,string)": {
+					"details": "Emitted when the metadata is frozen (e.g.: `baseURI` can no longer be changed).",
+					"params": {
+						"baseURI": "The base URI of the edition.",
+						"contractURI": "The contract URI of the edition."
+					}
+				},
+				"Minted(address,uint256,uint256)": {
+					"details": "Emitted upon a mint.",
+					"params": {
+						"_firstMintedTokenId": "The first token ID minted.",
+						"quantity": "The number of minted.",
+						"to": "The address to mint to."
+					}
+				},
+				"OperatorFilteringEnablededSet(bool)": {
+					"details": "Emitted when the `operatorFilteringEnabled` is set.",
+					"params": {
+						"operatorFilteringEnabled_": "The boolean value."
+					}
+				},
+				"PayoutAddressSet(address)": {
+					"details": "Emitted when the `payoutAddress` is set.",
+					"params": {
+						"payoutAddress": "The address of the funding recipient."
+					}
+				},
+				"RoyaltySet(uint16)": {
+					"details": "Emitted when the `royaltyBPS` is set.",
+					"params": {
+						"bps": "The new royalty, measured in basis points."
+					}
+				},
+				"Sale(address,uint256,uint256,uint256)": {
+					"params": {
+						"firstPurchasedTokenId": "first purchased token ID (to get range add to quantity for max)",
+						"pricePerToken": "price for each token",
+						"quantity": "quantity of the minted nfts",
+						"to": "address sale was made to"
+					}
+				},
+				"SalesConfigChanged(address)": {
+					"details": "To access new sales configuration, use getter function.",
+					"params": {
+						"changedBy": "Changed by user"
+					}
+				},
+				"URIUpdated(string,bool)": {
+					"params": {
+						"baseURI": "The base URI for the collection.",
+						"isRevealed": "Whether the collection is revealed."
+					}
+				}
+			},
+			"kind": "dev",
+			"methods": {},
+			"version": 1
+		},
+		"userdoc": {
+			"errors": {
+				"Mint_SoldOut()": [
+					{
+						"notice": "NFT sold out"
+					}
+				],
+				"Presale_Inactive()": [
+					{
+						"notice": "Presale is inactive"
+					}
+				],
+				"Presale_MerkleNotApproved()": [
+					{
+						"notice": "Presale merkle root is invalid"
+					}
+				],
+				"Presale_TooManyForAddress()": [
+					{
+						"notice": "Too many presale for address"
+					}
+				],
+				"Purchase_TooManyForAddress()": [
+					{
+						"notice": "Too many purchase for address"
+					}
+				],
+				"Purchase_WrongPrice(uint256)": [
+					{
+						"notice": "Wrong price for purchase"
+					}
+				],
+				"Sale_Inactive()": [
+					{
+						"notice": "Sale is inactive"
+					}
+				]
+			},
+			"events": {
+				"FundsWithdrawn(address,address,uint256,address,uint256)": {
+					"notice": "Event emitted when the funds are withdrawn from the minting contract"
+				},
+				"Sale(address,uint256,uint256,uint256)": {
+					"notice": "Event emitted for each sale"
+				},
+				"SalesConfigChanged(address)": {
+					"notice": "Sales configuration has been changed"
+				},
+				"URIUpdated(string,bool)": {
+					"notice": "Emitted when the collection is revealed."
+				}
+			},
+			"kind": "user",
+			"methods": {
+				"purchasePresale(uint256,uint256,uint256,bytes32[])": {
+					"notice": "============================================================= PRESALE FUNCTIONS ============================================================="
+				},
+				"reveal(string)": {
+					"notice": "============================================================= ADMIN FUNCTIONS ============================================================="
+				}
+			},
+			"version": 1
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"IERC721TestDrop.sol": "IERC721TestDrop"
+		},
+		"evmVersion": "paris",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"IERC721TestDrop.sol": {
+			"keccak256": "0xd502f907309cae5c9f308408065aca9b04879b6d9be565466486544b186f8155",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://ce6bd84d35dd412b86cadc99fa308c1a0f21817e3f320f7f9eac390a58367f7c",
+				"dweb:/ipfs/QmaaYWFkKngsBh85YzbFnLifHEYKggKg1XqvnSLp9rwhd3"
+			]
+		},
+		"ITestFeeManager.sol": {
+			"keccak256": "0x1893cd08b03c6c02365141c6df0e23a39ff749b05bde2a9d3c5aee78a4de7e5b",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://7eee19d9483c63cfc1988e21d1d51958a2ee0ae64d7c7ac2cf80a1430370fa9a",
+				"dweb:/ipfs/QmNVLipCNf41TZzSoC1GFiNfqGq3oigeHkWy5rULEysQtM"
+			]
+		}
+	},
+	"version": 1
+}

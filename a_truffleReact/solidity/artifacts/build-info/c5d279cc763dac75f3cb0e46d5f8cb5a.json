@@ -1,0 +1,5352 @@
+{
+	"id": "c5d279cc763dac75f3cb0e46d5f8cb5a",
+	"_format": "hh-sol-build-info-1",
+	"solcVersion": "0.8.19",
+	"solcLongVersion": "0.8.19+commit.7dd6d404",
+	"input": {
+		"language": "Solidity",
+		"sources": {
+			"IERC721TestDrop.sol": {
+				"content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.16;\n\n// import {IERC721AUpgradeable} from \"ERC721A-Upgradeable/IERC721AUpgradeable.sol\";\n// import {IERC2981Upgradeable} from \"openzeppelin-contracts-upgradeable/interfaces/IERC2981Upgradeable.sol\";\n// import {IERC165Upgradeable} from \"openzeppelin-contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol\";\nimport {ITestFeeManager} from \"./ITestFeeManager.sol\";\n\n/**\n * @dev Interface for ERC721TestDrop.sol\n */\n\ninterface IERC721TestDrop {\n    /// @notice General configuration for NFT Minting and bookkeeping\n    struct Configuration {\n        /// @dev Total size of edition that can be minted (uint160+64 = 224)\n        uint64 editionSize;\n        /// @dev Royalty amount in bps (uint224+16 = 240)\n        uint16 royaltyBPS;\n        /// @dev Funds recipient for sale (new slot, uint160)\n        address payable fundsRecipient;\n    }\n\n    /// @notice Sales states and configuration\n    /// @dev Uses 3 storage slots\n    struct SalesConfiguration {\n        /// @dev Public sale price (max ether value > 1000 ether with this value)\n        uint104 publicSalePrice;\n        /// @notice Purchase mint limit per address (if set to 0 === unlimited mints)\n        /// @dev Max purchase number per txn (90+32 = 122)\n        uint32 maxSalePurchasePerAddress;\n        /// @dev uint64 type allows for dates into 292 billion years\n        /// @notice Public sale start timestamp (136+64 = 186)\n        uint64 publicSaleStart;\n        /// @notice Public sale end timestamp (186+64 = 250)\n        uint64 publicSaleEnd;\n        /// @notice Presale start timestamp\n        /// @dev new storage slot\n        uint64 presaleStart;\n        /// @notice Presale end timestamp\n        uint64 presaleEnd;\n        /// @notice Presale merkle root\n        bytes32 presaleMerkleRoot;\n    }\n\n    /// @notice Return value for sales details to use with front-ends\n    struct SaleDetails {\n        // Synthesized status variables for sale and presale\n        bool publicSaleActive;\n        bool presaleActive;\n        // Price for public sale\n        uint256 publicSalePrice;\n        // Timed sale actions for public sale\n        uint64 publicSaleStart;\n        uint64 publicSaleEnd;\n        // Timed sale actions for presale\n        uint64 presaleStart;\n        uint64 presaleEnd;\n        // Merkle root (includes address, quantity, and price data for each entry)\n        bytes32 presaleMerkleRoot;\n        // Limit public sale to a specific number of mints per wallet\n        uint256 maxSalePurchasePerAddress;\n        // Information about the rest of the supply\n        // Total that have been minted\n        uint256 totalMinted;\n        // The total supply available\n        uint256 maxSupply;\n    }\n\n    /// @notice Return type of specific mint counts and details per address\n    struct AddressMintDetails {\n        /// Number of total mints from the given address\n        uint256 totalMints;\n        /// Number of presale mints from the given address\n        uint256 presaleMints;\n        /// Number of public mints from the given address\n        uint256 publicMints;\n    }\n    // =============================================================\n    //                            EVENTS\n    // =============================================================\n\n    /**\n     * @dev Emitted upon an airdrop.\n     * @param to          The recipients of the airdrop.\n     * @param quantity    The number of tokens airdropped to each address in `to`.\n     * @param fromTokenId The first token ID minted to the first address in `to`.\n     */\n    event Airdropped(address[] to, uint256 quantity, uint256 fromTokenId);\n\n    /**\n     * @notice Emitted when the collection is revealed.\n     * @param baseURI The base URI for the collection.\n     * @param isRevealed Whether the collection is revealed.\n     */\n    event URIUpdated(string baseURI, bool isRevealed);\n\n    /**\n     * @dev Emitted upon a mint.\n     * @param to          The address to mint to.\n     * @param quantity    The number of minted.\n     * @param _firstMintedTokenId The first token ID minted.\n     */\n    event Minted(address to, uint256 quantity, uint256 _firstMintedTokenId);\n\n    /**\n     * @dev Emitted when the `operatorFilteringEnabled` is set.\n     * @param operatorFilteringEnabled_ The boolean value.\n     */\n    event OperatorFilteringEnablededSet(bool operatorFilteringEnabled_);\n\n    /**\n     * @dev Emitted when the `royaltyBPS` is set.\n     * @param bps The new royalty, measured in basis points.\n     */\n    event RoyaltySet(uint16 bps);\n\n    /**\n     * @dev Emitted when the metadata is frozen (e.g.: `baseURI` can no longer be changed).\n     * @param baseURI        The base URI of the edition.\n     * @param contractURI    The contract URI of the edition.\n     */\n    event MetadataFrozen(string baseURI, string contractURI);\n\n    /// @notice Event emitted when the funds are withdrawn from the minting contract\n    /// @param withdrawnBy address that issued the withdraw\n    /// @param withdrawnTo address that the funds were withdrawn to\n    /// @param amount amount that was withdrawn\n    /// @param feeRecipient user getting withdraw fee (if any)\n    /// @param feeAmount amount of the fee getting sent (if any)\n    event FundsWithdrawn(\n        address indexed withdrawnBy,\n        address indexed withdrawnTo,\n        uint256 amount,\n        address feeRecipient,\n        uint256 feeAmount\n    );\n\n    /// @notice Event emitted for each sale\n    /// @param to address sale was made to\n    /// @param quantity quantity of the minted nfts\n    /// @param pricePerToken price for each token\n    /// @param firstPurchasedTokenId first purchased token ID (to get range add to quantity for max)\n    event Sale(\n        address indexed to,\n        uint256 indexed quantity,\n        uint256 indexed pricePerToken,\n        uint256 firstPurchasedTokenId\n    );\n\n    /// @notice Sales configuration has been changed\n    /// @dev To access new sales configuration, use getter function.\n    /// @param changedBy Changed by user\n    event SalesConfigChanged(address indexed changedBy);\n\n    event ContractURISet(string indexed _contractURI);\n\n    event BaseURISet(string indexed _baseURI);\n\n    // =============================================================\n    //                            ERRORS\n    // =============================================================\n\n    /**\n     * @dev No addresses to airdrop.\n     */\n    error NoAddressesToAirdrop();\n    // Sale/Purchase errors\n    /// @notice Sale is inactive\n    error Sale_Inactive();\n    /// @notice Presale is inactive\n    error Presale_Inactive();\n    /// @notice Presale merkle root is invalid\n    error Presale_MerkleNotApproved();\n    /// @notice Wrong price for purchase\n    error Purchase_WrongPrice(uint256 correctPrice);\n    /// @notice NFT sold out\n    error Mint_SoldOut();\n    /// @notice Too many purchase for address\n    error Purchase_TooManyForAddress();\n    /// @notice Too many presale for address\n    error Presale_TooManyForAddress();\n\n    error WithdrawFundsSendFailure();\n\n    /**\n     * @dev The given `InvalidPayoutAddress` address is invalid.\n     */\n    error InvalidPayoutAddress();\n\n    /**\n     * @dev Emitted when the `payoutAddress` is set.\n     * @param payoutAddress The address of the funding recipient.\n     */\n    event PayoutAddressSet(address payoutAddress);\n\n    /**\n     * @dev The given `royaltyBPS` is invalid.\n     */\n    error InvalidRoyaltyBPS();\n\n    /**\n     * @dev The edition's metadata is frozen (e.g.: `baseURI` can no longer be changed).\n     */\n    error MetadataIsFrozen();\n\n    /**\n     * @dev The requested quantity exceeds the edition's remaining mintable token quantity.\n     * @param available The number of tokens remaining available for mint.\n     */\n    error ExceedsEditionAvailableSupply(uint32 available);\n\n    /**\n     * @dev The mint `quantity` cannot exceed `ADDRESS_BATCH_MINT_LIMIT` tokens.\n     */\n    error ExceedsAddressBatchMintLimit();\n\n    // =============================================================\n    //               PUBLIC / EXTERNAL WRITE FUNCTIONS\n    // =============================================================\n\n    function initialize(\n        string memory name_,\n        string memory symbol_,\n        string memory baseURI_,\n        string memory contractURI_,\n        address payoutAddress_,\n        uint16 royaltyBPS_,\n        SalesConfiguration memory _salesconfig,\n        uint32 editionMaxMintable_,\n        uint8 flags_,\n        ITestFeeManager testFeeManager_\n    ) external;\n\n    function payAndMint(uint256 quantity)\n        external\n        payable\n        returns (uint256 _firstMintedTokenId);\n\n    function adminMint(address to, uint256 quantity)\n        external\n        payable\n        returns (uint256 _firstMintedTokenId);\n\n    function airdropAdminMint(address[] calldata _to, uint256 _quantity)\n        external\n        returns (uint256 _firstMintedTokenId);\n\n    /** \n        =============================================================\n                        PRESALE FUNCTIONS\n        =============================================================\n    */\n\n    function purchasePresale(\n        uint256 quantity,\n        uint256 maxQuantity,\n        uint256 pricePerToken,\n        bytes32[] calldata merkleProof\n    ) external payable returns (uint256);\n\n    function setSaleConfiguration(\n        uint104 publicSalePrice,\n        uint32 maxSalePurchasePerAddress,\n        uint64 publicSaleStart,\n        uint64 publicSaleEnd,\n        uint64 presaleStart,\n        uint64 presaleEnd,\n        bytes32 presaleMerkleRoot\n    ) external;\n\n    function withdrawETH() external;\n\n    // function withdrawERC20(address[] calldata tokens) external;\n\n    /** \n        =============================================================\n                         ADMIN FUNCTIONS\n        =============================================================\n    */\n\n    function reveal(string calldata baseURI_) external;\n\n    function updatePreRevealContent(string memory baseURI_) external;\n\n    function freezeMetadata() external;\n\n    function setRoyalty(uint16 royaltyBPS_) external;\n\n    function setPayoutAddress(address _payoutAddress) external;\n\n    function setApprovalForAll(address operator, bool approved) external;\n\n    function setBaseURI(string memory baseURI) external;\n\n    function setContractURI(string memory contractURI) external;\n    \n}\n"
+			},
+			"ITestFeeManager.sol": {
+				"content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.16;\n\n/**\n * @title ITestFeeManager\n * @author https://github.com/chirag-bgh\n */\ninterface ITestFeeManager {\n    /**\n     * @dev Emitted when the `testFeeAddress` is changed.\n     */\n    event TestFeeAddressSet(address testFeeAddress);\n\n    /**\n     * @dev Emitted when the `platformFeeBPS` is changed.\n     */\n    event PlatformFeeSet(uint16 platformFeeBPS);\n\n    /**\n     * @dev The new `testFeeAddress` must not be address(0).\n     */\n    error InvalidTestFeeAddress();\n\n    /**\n     * @dev The platform fee numerator must not exceed `_MAX_BPS`.\n     */\n    error InvalidPlatformFeeBPS();\n\n    /**\n     * @dev Sets the `testFeeAddress`.\n     *\n     * Calling conditions:\n     * - The caller must be the owner of the contract.\n     *\n     * @param testFeeAddress_ The test fee address.\n     */\n    function setTestFeeAddress(address testFeeAddress_) external;\n\n    /**\n     * @dev Sets the `platformFeePBS`.\n     *\n     * Calling conditions:\n     * - The caller must be the owner of the contract.\n     *\n     * @param platformFeeBPS_ Platform fee amount in bps (basis points).\n     */\n    function setPlatformFeeBPS(uint16 platformFeeBPS_) external;\n\n    /**\n    \n     */\n\n    function getTestFeeManager() external view returns (address);\n\n    /**\n     * @dev The protocol's address that receives platform fees.\n     * @return The configured value.\n     */\n    function testFeeAddress() external view returns (address);\n\n    /**\n     * @dev The numerator of the platform fee.\n     * @return The configured value.\n     */\n    function platformFeeBPS() external view returns (uint16);\n\n    /**\n     * @dev The platform fee for `requiredEtherValue`.\n     * @param requiredEtherValue The required Ether value for payment.\n     * @return fee The computed value.\n     */\n    function platformFee(uint128 requiredEtherValue)\n        external\n        view\n        returns (uint128 fee);\n}\n"
+			}
+		},
+		"settings": {
+			"optimizer": {
+				"enabled": false,
+				"runs": 200
+			},
+			"outputSelection": {
+				"*": {
+					"": [
+						"ast"
+					],
+					"*": [
+						"abi",
+						"metadata",
+						"devdoc",
+						"userdoc",
+						"storageLayout",
+						"evm.legacyAssembly",
+						"evm.bytecode",
+						"evm.deployedBytecode",
+						"evm.methodIdentifiers",
+						"evm.gasEstimates",
+						"evm.assembly"
+					]
+				}
+			}
+		}
+	},
+	"output": {
+		"contracts": {
+			"IERC721TestDrop.sol": {
+				"IERC721TestDrop": {
+					"abi": [
+						{
+							"inputs": [],
+							"name": "ExceedsAddressBatchMintLimit",
+							"type": "error"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "uint32",
+									"name": "available",
+									"type": "uint32"
+								}
+							],
+							"name": "ExceedsEditionAvailableSupply",
+							"type": "error"
+						},
+						{
+							"inputs": [],
+							"name": "InvalidPayoutAddress",
+							"type": "error"
+						},
+						{
+							"inputs": [],
+							"name": "InvalidRoyaltyBPS",
+							"type": "error"
+						},
+						{
+							"inputs": [],
+							"name": "MetadataIsFrozen",
+							"type": "error"
+						},
+						{
+							"inputs": [],
+							"name": "Mint_SoldOut",
+							"type": "error"
+						},
+						{
+							"inputs": [],
+							"name": "NoAddressesToAirdrop",
+							"type": "error"
+						},
+						{
+							"inputs": [],
+							"name": "Presale_Inactive",
+							"type": "error"
+						},
+						{
+							"inputs": [],
+							"name": "Presale_MerkleNotApproved",
+							"type": "error"
+						},
+						{
+							"inputs": [],
+							"name": "Presale_TooManyForAddress",
+							"type": "error"
+						},
+						{
+							"inputs": [],
+							"name": "Purchase_TooManyForAddress",
+							"type": "error"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "uint256",
+									"name": "correctPrice",
+									"type": "uint256"
+								}
+							],
+							"name": "Purchase_WrongPrice",
+							"type": "error"
+						},
+						{
+							"inputs": [],
+							"name": "Sale_Inactive",
+							"type": "error"
+						},
+						{
+							"inputs": [],
+							"name": "WithdrawFundsSendFailure",
+							"type": "error"
+						},
+						{
+							"anonymous": false,
+							"inputs": [
+								{
+									"indexed": false,
+									"internalType": "address[]",
+									"name": "to",
+									"type": "address[]"
+								},
+								{
+									"indexed": false,
+									"internalType": "uint256",
+									"name": "quantity",
+									"type": "uint256"
+								},
+								{
+									"indexed": false,
+									"internalType": "uint256",
+									"name": "fromTokenId",
+									"type": "uint256"
+								}
+							],
+							"name": "Airdropped",
+							"type": "event"
+						},
+						{
+							"anonymous": false,
+							"inputs": [
+								{
+									"indexed": true,
+									"internalType": "string",
+									"name": "_baseURI",
+									"type": "string"
+								}
+							],
+							"name": "BaseURISet",
+							"type": "event"
+						},
+						{
+							"anonymous": false,
+							"inputs": [
+								{
+									"indexed": true,
+									"internalType": "string",
+									"name": "_contractURI",
+									"type": "string"
+								}
+							],
+							"name": "ContractURISet",
+							"type": "event"
+						},
+						{
+							"anonymous": false,
+							"inputs": [
+								{
+									"indexed": true,
+									"internalType": "address",
+									"name": "withdrawnBy",
+									"type": "address"
+								},
+								{
+									"indexed": true,
+									"internalType": "address",
+									"name": "withdrawnTo",
+									"type": "address"
+								},
+								{
+									"indexed": false,
+									"internalType": "uint256",
+									"name": "amount",
+									"type": "uint256"
+								},
+								{
+									"indexed": false,
+									"internalType": "address",
+									"name": "feeRecipient",
+									"type": "address"
+								},
+								{
+									"indexed": false,
+									"internalType": "uint256",
+									"name": "feeAmount",
+									"type": "uint256"
+								}
+							],
+							"name": "FundsWithdrawn",
+							"type": "event"
+						},
+						{
+							"anonymous": false,
+							"inputs": [
+								{
+									"indexed": false,
+									"internalType": "string",
+									"name": "baseURI",
+									"type": "string"
+								},
+								{
+									"indexed": false,
+									"internalType": "string",
+									"name": "contractURI",
+									"type": "string"
+								}
+							],
+							"name": "MetadataFrozen",
+							"type": "event"
+						},
+						{
+							"anonymous": false,
+							"inputs": [
+								{
+									"indexed": false,
+									"internalType": "address",
+									"name": "to",
+									"type": "address"
+								},
+								{
+									"indexed": false,
+									"internalType": "uint256",
+									"name": "quantity",
+									"type": "uint256"
+								},
+								{
+									"indexed": false,
+									"internalType": "uint256",
+									"name": "_firstMintedTokenId",
+									"type": "uint256"
+								}
+							],
+							"name": "Minted",
+							"type": "event"
+						},
+						{
+							"anonymous": false,
+							"inputs": [
+								{
+									"indexed": false,
+									"internalType": "bool",
+									"name": "operatorFilteringEnabled_",
+									"type": "bool"
+								}
+							],
+							"name": "OperatorFilteringEnablededSet",
+							"type": "event"
+						},
+						{
+							"anonymous": false,
+							"inputs": [
+								{
+									"indexed": false,
+									"internalType": "address",
+									"name": "payoutAddress",
+									"type": "address"
+								}
+							],
+							"name": "PayoutAddressSet",
+							"type": "event"
+						},
+						{
+							"anonymous": false,
+							"inputs": [
+								{
+									"indexed": false,
+									"internalType": "uint16",
+									"name": "bps",
+									"type": "uint16"
+								}
+							],
+							"name": "RoyaltySet",
+							"type": "event"
+						},
+						{
+							"anonymous": false,
+							"inputs": [
+								{
+									"indexed": true,
+									"internalType": "address",
+									"name": "to",
+									"type": "address"
+								},
+								{
+									"indexed": true,
+									"internalType": "uint256",
+									"name": "quantity",
+									"type": "uint256"
+								},
+								{
+									"indexed": true,
+									"internalType": "uint256",
+									"name": "pricePerToken",
+									"type": "uint256"
+								},
+								{
+									"indexed": false,
+									"internalType": "uint256",
+									"name": "firstPurchasedTokenId",
+									"type": "uint256"
+								}
+							],
+							"name": "Sale",
+							"type": "event"
+						},
+						{
+							"anonymous": false,
+							"inputs": [
+								{
+									"indexed": true,
+									"internalType": "address",
+									"name": "changedBy",
+									"type": "address"
+								}
+							],
+							"name": "SalesConfigChanged",
+							"type": "event"
+						},
+						{
+							"anonymous": false,
+							"inputs": [
+								{
+									"indexed": false,
+									"internalType": "string",
+									"name": "baseURI",
+									"type": "string"
+								},
+								{
+									"indexed": false,
+									"internalType": "bool",
+									"name": "isRevealed",
+									"type": "bool"
+								}
+							],
+							"name": "URIUpdated",
+							"type": "event"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "address",
+									"name": "to",
+									"type": "address"
+								},
+								{
+									"internalType": "uint256",
+									"name": "quantity",
+									"type": "uint256"
+								}
+							],
+							"name": "adminMint",
+							"outputs": [
+								{
+									"internalType": "uint256",
+									"name": "_firstMintedTokenId",
+									"type": "uint256"
+								}
+							],
+							"stateMutability": "payable",
+							"type": "function"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "address[]",
+									"name": "_to",
+									"type": "address[]"
+								},
+								{
+									"internalType": "uint256",
+									"name": "_quantity",
+									"type": "uint256"
+								}
+							],
+							"name": "airdropAdminMint",
+							"outputs": [
+								{
+									"internalType": "uint256",
+									"name": "_firstMintedTokenId",
+									"type": "uint256"
+								}
+							],
+							"stateMutability": "nonpayable",
+							"type": "function"
+						},
+						{
+							"inputs": [],
+							"name": "freezeMetadata",
+							"outputs": [],
+							"stateMutability": "nonpayable",
+							"type": "function"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "string",
+									"name": "name_",
+									"type": "string"
+								},
+								{
+									"internalType": "string",
+									"name": "symbol_",
+									"type": "string"
+								},
+								{
+									"internalType": "string",
+									"name": "baseURI_",
+									"type": "string"
+								},
+								{
+									"internalType": "string",
+									"name": "contractURI_",
+									"type": "string"
+								},
+								{
+									"internalType": "address",
+									"name": "payoutAddress_",
+									"type": "address"
+								},
+								{
+									"internalType": "uint16",
+									"name": "royaltyBPS_",
+									"type": "uint16"
+								},
+								{
+									"components": [
+										{
+											"internalType": "uint104",
+											"name": "publicSalePrice",
+											"type": "uint104"
+										},
+										{
+											"internalType": "uint32",
+											"name": "maxSalePurchasePerAddress",
+											"type": "uint32"
+										},
+										{
+											"internalType": "uint64",
+											"name": "publicSaleStart",
+											"type": "uint64"
+										},
+										{
+											"internalType": "uint64",
+											"name": "publicSaleEnd",
+											"type": "uint64"
+										},
+										{
+											"internalType": "uint64",
+											"name": "presaleStart",
+											"type": "uint64"
+										},
+										{
+											"internalType": "uint64",
+											"name": "presaleEnd",
+											"type": "uint64"
+										},
+										{
+											"internalType": "bytes32",
+											"name": "presaleMerkleRoot",
+											"type": "bytes32"
+										}
+									],
+									"internalType": "struct IERC721TestDrop.SalesConfiguration",
+									"name": "_salesconfig",
+									"type": "tuple"
+								},
+								{
+									"internalType": "uint32",
+									"name": "editionMaxMintable_",
+									"type": "uint32"
+								},
+								{
+									"internalType": "uint8",
+									"name": "flags_",
+									"type": "uint8"
+								},
+								{
+									"internalType": "contract ITestFeeManager",
+									"name": "testFeeManager_",
+									"type": "address"
+								}
+							],
+							"name": "initialize",
+							"outputs": [],
+							"stateMutability": "nonpayable",
+							"type": "function"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "uint256",
+									"name": "quantity",
+									"type": "uint256"
+								}
+							],
+							"name": "payAndMint",
+							"outputs": [
+								{
+									"internalType": "uint256",
+									"name": "_firstMintedTokenId",
+									"type": "uint256"
+								}
+							],
+							"stateMutability": "payable",
+							"type": "function"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "uint256",
+									"name": "quantity",
+									"type": "uint256"
+								},
+								{
+									"internalType": "uint256",
+									"name": "maxQuantity",
+									"type": "uint256"
+								},
+								{
+									"internalType": "uint256",
+									"name": "pricePerToken",
+									"type": "uint256"
+								},
+								{
+									"internalType": "bytes32[]",
+									"name": "merkleProof",
+									"type": "bytes32[]"
+								}
+							],
+							"name": "purchasePresale",
+							"outputs": [
+								{
+									"internalType": "uint256",
+									"name": "",
+									"type": "uint256"
+								}
+							],
+							"stateMutability": "payable",
+							"type": "function"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "string",
+									"name": "baseURI_",
+									"type": "string"
+								}
+							],
+							"name": "reveal",
+							"outputs": [],
+							"stateMutability": "nonpayable",
+							"type": "function"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "address",
+									"name": "operator",
+									"type": "address"
+								},
+								{
+									"internalType": "bool",
+									"name": "approved",
+									"type": "bool"
+								}
+							],
+							"name": "setApprovalForAll",
+							"outputs": [],
+							"stateMutability": "nonpayable",
+							"type": "function"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "string",
+									"name": "baseURI",
+									"type": "string"
+								}
+							],
+							"name": "setBaseURI",
+							"outputs": [],
+							"stateMutability": "nonpayable",
+							"type": "function"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "string",
+									"name": "contractURI",
+									"type": "string"
+								}
+							],
+							"name": "setContractURI",
+							"outputs": [],
+							"stateMutability": "nonpayable",
+							"type": "function"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "address",
+									"name": "_payoutAddress",
+									"type": "address"
+								}
+							],
+							"name": "setPayoutAddress",
+							"outputs": [],
+							"stateMutability": "nonpayable",
+							"type": "function"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "uint16",
+									"name": "royaltyBPS_",
+									"type": "uint16"
+								}
+							],
+							"name": "setRoyalty",
+							"outputs": [],
+							"stateMutability": "nonpayable",
+							"type": "function"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "uint104",
+									"name": "publicSalePrice",
+									"type": "uint104"
+								},
+								{
+									"internalType": "uint32",
+									"name": "maxSalePurchasePerAddress",
+									"type": "uint32"
+								},
+								{
+									"internalType": "uint64",
+									"name": "publicSaleStart",
+									"type": "uint64"
+								},
+								{
+									"internalType": "uint64",
+									"name": "publicSaleEnd",
+									"type": "uint64"
+								},
+								{
+									"internalType": "uint64",
+									"name": "presaleStart",
+									"type": "uint64"
+								},
+								{
+									"internalType": "uint64",
+									"name": "presaleEnd",
+									"type": "uint64"
+								},
+								{
+									"internalType": "bytes32",
+									"name": "presaleMerkleRoot",
+									"type": "bytes32"
+								}
+							],
+							"name": "setSaleConfiguration",
+							"outputs": [],
+							"stateMutability": "nonpayable",
+							"type": "function"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "string",
+									"name": "baseURI_",
+									"type": "string"
+								}
+							],
+							"name": "updatePreRevealContent",
+							"outputs": [],
+							"stateMutability": "nonpayable",
+							"type": "function"
+						},
+						{
+							"inputs": [],
+							"name": "withdrawETH",
+							"outputs": [],
+							"stateMutability": "nonpayable",
+							"type": "function"
+						}
+					],
+					"devdoc": {
+						"details": "Interface for ERC721TestDrop.sol",
+						"errors": {
+							"ExceedsAddressBatchMintLimit()": [
+								{
+									"details": "The mint `quantity` cannot exceed `ADDRESS_BATCH_MINT_LIMIT` tokens."
+								}
+							],
+							"ExceedsEditionAvailableSupply(uint32)": [
+								{
+									"details": "The requested quantity exceeds the edition's remaining mintable token quantity.",
+									"params": {
+										"available": "The number of tokens remaining available for mint."
+									}
+								}
+							],
+							"InvalidPayoutAddress()": [
+								{
+									"details": "The given `InvalidPayoutAddress` address is invalid."
+								}
+							],
+							"InvalidRoyaltyBPS()": [
+								{
+									"details": "The given `royaltyBPS` is invalid."
+								}
+							],
+							"MetadataIsFrozen()": [
+								{
+									"details": "The edition's metadata is frozen (e.g.: `baseURI` can no longer be changed)."
+								}
+							],
+							"NoAddressesToAirdrop()": [
+								{
+									"details": "No addresses to airdrop."
+								}
+							]
+						},
+						"events": {
+							"Airdropped(address[],uint256,uint256)": {
+								"details": "Emitted upon an airdrop.",
+								"params": {
+									"fromTokenId": "The first token ID minted to the first address in `to`.",
+									"quantity": "The number of tokens airdropped to each address in `to`.",
+									"to": "The recipients of the airdrop."
+								}
+							},
+							"FundsWithdrawn(address,address,uint256,address,uint256)": {
+								"params": {
+									"amount": "amount that was withdrawn",
+									"feeAmount": "amount of the fee getting sent (if any)",
+									"feeRecipient": "user getting withdraw fee (if any)",
+									"withdrawnBy": "address that issued the withdraw",
+									"withdrawnTo": "address that the funds were withdrawn to"
+								}
+							},
+							"MetadataFrozen(string,string)": {
+								"details": "Emitted when the metadata is frozen (e.g.: `baseURI` can no longer be changed).",
+								"params": {
+									"baseURI": "The base URI of the edition.",
+									"contractURI": "The contract URI of the edition."
+								}
+							},
+							"Minted(address,uint256,uint256)": {
+								"details": "Emitted upon a mint.",
+								"params": {
+									"_firstMintedTokenId": "The first token ID minted.",
+									"quantity": "The number of minted.",
+									"to": "The address to mint to."
+								}
+							},
+							"OperatorFilteringEnablededSet(bool)": {
+								"details": "Emitted when the `operatorFilteringEnabled` is set.",
+								"params": {
+									"operatorFilteringEnabled_": "The boolean value."
+								}
+							},
+							"PayoutAddressSet(address)": {
+								"details": "Emitted when the `payoutAddress` is set.",
+								"params": {
+									"payoutAddress": "The address of the funding recipient."
+								}
+							},
+							"RoyaltySet(uint16)": {
+								"details": "Emitted when the `royaltyBPS` is set.",
+								"params": {
+									"bps": "The new royalty, measured in basis points."
+								}
+							},
+							"Sale(address,uint256,uint256,uint256)": {
+								"params": {
+									"firstPurchasedTokenId": "first purchased token ID (to get range add to quantity for max)",
+									"pricePerToken": "price for each token",
+									"quantity": "quantity of the minted nfts",
+									"to": "address sale was made to"
+								}
+							},
+							"SalesConfigChanged(address)": {
+								"details": "To access new sales configuration, use getter function.",
+								"params": {
+									"changedBy": "Changed by user"
+								}
+							},
+							"URIUpdated(string,bool)": {
+								"params": {
+									"baseURI": "The base URI for the collection.",
+									"isRevealed": "Whether the collection is revealed."
+								}
+							}
+						},
+						"kind": "dev",
+						"methods": {},
+						"version": 1
+					},
+					"evm": {
+						"assembly": "",
+						"bytecode": {
+							"functionDebugData": {},
+							"generatedSources": [],
+							"linkReferences": {},
+							"object": "",
+							"opcodes": "",
+							"sourceMap": ""
+						},
+						"deployedBytecode": {
+							"functionDebugData": {},
+							"generatedSources": [],
+							"immutableReferences": {},
+							"linkReferences": {},
+							"object": "",
+							"opcodes": "",
+							"sourceMap": ""
+						},
+						"gasEstimates": null,
+						"legacyAssembly": null,
+						"methodIdentifiers": {
+							"adminMint(address,uint256)": "e58306f9",
+							"airdropAdminMint(address[],uint256)": "778faeec",
+							"freezeMetadata()": "d111515d",
+							"initialize(string,string,string,string,address,uint16,(uint104,uint32,uint64,uint64,uint64,uint64,bytes32),uint32,uint8,address)": "de4effbd",
+							"payAndMint(uint256)": "1909159a",
+							"purchasePresale(uint256,uint256,uint256,bytes32[])": "25024a2b",
+							"reveal(string)": "4c261247",
+							"setApprovalForAll(address,bool)": "a22cb465",
+							"setBaseURI(string)": "55f804b3",
+							"setContractURI(string)": "938e3d7b",
+							"setPayoutAddress(address)": "33ea51a8",
+							"setRoyalty(uint16)": "36e79a5a",
+							"setSaleConfiguration(uint104,uint32,uint64,uint64,uint64,uint64,bytes32)": "ffdb7163",
+							"updatePreRevealContent(string)": "72c7dbbe",
+							"withdrawETH()": "e086e5ec"
+						}
+					},
+					"metadata": "{\"compiler\":{\"version\":\"0.8.19+commit.7dd6d404\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"ExceedsAddressBatchMintLimit\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"available\",\"type\":\"uint32\"}],\"name\":\"ExceedsEditionAvailableSupply\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidPayoutAddress\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidRoyaltyBPS\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"MetadataIsFrozen\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"Mint_SoldOut\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NoAddressesToAirdrop\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"Presale_Inactive\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"Presale_MerkleNotApproved\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"Presale_TooManyForAddress\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"Purchase_TooManyForAddress\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"correctPrice\",\"type\":\"uint256\"}],\"name\":\"Purchase_WrongPrice\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"Sale_Inactive\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"WithdrawFundsSendFailure\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address[]\",\"name\":\"to\",\"type\":\"address[]\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"quantity\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"fromTokenId\",\"type\":\"uint256\"}],\"name\":\"Airdropped\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"string\",\"name\":\"_baseURI\",\"type\":\"string\"}],\"name\":\"BaseURISet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"string\",\"name\":\"_contractURI\",\"type\":\"string\"}],\"name\":\"ContractURISet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"withdrawnBy\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"withdrawnTo\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"feeRecipient\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"feeAmount\",\"type\":\"uint256\"}],\"name\":\"FundsWithdrawn\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string\",\"name\":\"baseURI\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"contractURI\",\"type\":\"string\"}],\"name\":\"MetadataFrozen\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"quantity\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"_firstMintedTokenId\",\"type\":\"uint256\"}],\"name\":\"Minted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"bool\",\"name\":\"operatorFilteringEnabled_\",\"type\":\"bool\"}],\"name\":\"OperatorFilteringEnablededSet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"payoutAddress\",\"type\":\"address\"}],\"name\":\"PayoutAddressSet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint16\",\"name\":\"bps\",\"type\":\"uint16\"}],\"name\":\"RoyaltySet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"quantity\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"pricePerToken\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"firstPurchasedTokenId\",\"type\":\"uint256\"}],\"name\":\"Sale\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"changedBy\",\"type\":\"address\"}],\"name\":\"SalesConfigChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string\",\"name\":\"baseURI\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"bool\",\"name\":\"isRevealed\",\"type\":\"bool\"}],\"name\":\"URIUpdated\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"quantity\",\"type\":\"uint256\"}],\"name\":\"adminMint\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"_firstMintedTokenId\",\"type\":\"uint256\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"_to\",\"type\":\"address[]\"},{\"internalType\":\"uint256\",\"name\":\"_quantity\",\"type\":\"uint256\"}],\"name\":\"airdropAdminMint\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"_firstMintedTokenId\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"freezeMetadata\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"name_\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"symbol_\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"baseURI_\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"contractURI_\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"payoutAddress_\",\"type\":\"address\"},{\"internalType\":\"uint16\",\"name\":\"royaltyBPS_\",\"type\":\"uint16\"},{\"components\":[{\"internalType\":\"uint104\",\"name\":\"publicSalePrice\",\"type\":\"uint104\"},{\"internalType\":\"uint32\",\"name\":\"maxSalePurchasePerAddress\",\"type\":\"uint32\"},{\"internalType\":\"uint64\",\"name\":\"publicSaleStart\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"publicSaleEnd\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"presaleStart\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"presaleEnd\",\"type\":\"uint64\"},{\"internalType\":\"bytes32\",\"name\":\"presaleMerkleRoot\",\"type\":\"bytes32\"}],\"internalType\":\"struct IERC721TestDrop.SalesConfiguration\",\"name\":\"_salesconfig\",\"type\":\"tuple\"},{\"internalType\":\"uint32\",\"name\":\"editionMaxMintable_\",\"type\":\"uint32\"},{\"internalType\":\"uint8\",\"name\":\"flags_\",\"type\":\"uint8\"},{\"internalType\":\"contract ITestFeeManager\",\"name\":\"testFeeManager_\",\"type\":\"address\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"quantity\",\"type\":\"uint256\"}],\"name\":\"payAndMint\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"_firstMintedTokenId\",\"type\":\"uint256\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"quantity\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"maxQuantity\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"pricePerToken\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"merkleProof\",\"type\":\"bytes32[]\"}],\"name\":\"purchasePresale\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"baseURI_\",\"type\":\"string\"}],\"name\":\"reveal\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"operator\",\"type\":\"address\"},{\"internalType\":\"bool\",\"name\":\"approved\",\"type\":\"bool\"}],\"name\":\"setApprovalForAll\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"baseURI\",\"type\":\"string\"}],\"name\":\"setBaseURI\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"contractURI\",\"type\":\"string\"}],\"name\":\"setContractURI\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_payoutAddress\",\"type\":\"address\"}],\"name\":\"setPayoutAddress\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint16\",\"name\":\"royaltyBPS_\",\"type\":\"uint16\"}],\"name\":\"setRoyalty\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint104\",\"name\":\"publicSalePrice\",\"type\":\"uint104\"},{\"internalType\":\"uint32\",\"name\":\"maxSalePurchasePerAddress\",\"type\":\"uint32\"},{\"internalType\":\"uint64\",\"name\":\"publicSaleStart\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"publicSaleEnd\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"presaleStart\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"presaleEnd\",\"type\":\"uint64\"},{\"internalType\":\"bytes32\",\"name\":\"presaleMerkleRoot\",\"type\":\"bytes32\"}],\"name\":\"setSaleConfiguration\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"baseURI_\",\"type\":\"string\"}],\"name\":\"updatePreRevealContent\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"withdrawETH\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Interface for ERC721TestDrop.sol\",\"errors\":{\"ExceedsAddressBatchMintLimit()\":[{\"details\":\"The mint `quantity` cannot exceed `ADDRESS_BATCH_MINT_LIMIT` tokens.\"}],\"ExceedsEditionAvailableSupply(uint32)\":[{\"details\":\"The requested quantity exceeds the edition's remaining mintable token quantity.\",\"params\":{\"available\":\"The number of tokens remaining available for mint.\"}}],\"InvalidPayoutAddress()\":[{\"details\":\"The given `InvalidPayoutAddress` address is invalid.\"}],\"InvalidRoyaltyBPS()\":[{\"details\":\"The given `royaltyBPS` is invalid.\"}],\"MetadataIsFrozen()\":[{\"details\":\"The edition's metadata is frozen (e.g.: `baseURI` can no longer be changed).\"}],\"NoAddressesToAirdrop()\":[{\"details\":\"No addresses to airdrop.\"}]},\"events\":{\"Airdropped(address[],uint256,uint256)\":{\"details\":\"Emitted upon an airdrop.\",\"params\":{\"fromTokenId\":\"The first token ID minted to the first address in `to`.\",\"quantity\":\"The number of tokens airdropped to each address in `to`.\",\"to\":\"The recipients of the airdrop.\"}},\"FundsWithdrawn(address,address,uint256,address,uint256)\":{\"params\":{\"amount\":\"amount that was withdrawn\",\"feeAmount\":\"amount of the fee getting sent (if any)\",\"feeRecipient\":\"user getting withdraw fee (if any)\",\"withdrawnBy\":\"address that issued the withdraw\",\"withdrawnTo\":\"address that the funds were withdrawn to\"}},\"MetadataFrozen(string,string)\":{\"details\":\"Emitted when the metadata is frozen (e.g.: `baseURI` can no longer be changed).\",\"params\":{\"baseURI\":\"The base URI of the edition.\",\"contractURI\":\"The contract URI of the edition.\"}},\"Minted(address,uint256,uint256)\":{\"details\":\"Emitted upon a mint.\",\"params\":{\"_firstMintedTokenId\":\"The first token ID minted.\",\"quantity\":\"The number of minted.\",\"to\":\"The address to mint to.\"}},\"OperatorFilteringEnablededSet(bool)\":{\"details\":\"Emitted when the `operatorFilteringEnabled` is set.\",\"params\":{\"operatorFilteringEnabled_\":\"The boolean value.\"}},\"PayoutAddressSet(address)\":{\"details\":\"Emitted when the `payoutAddress` is set.\",\"params\":{\"payoutAddress\":\"The address of the funding recipient.\"}},\"RoyaltySet(uint16)\":{\"details\":\"Emitted when the `royaltyBPS` is set.\",\"params\":{\"bps\":\"The new royalty, measured in basis points.\"}},\"Sale(address,uint256,uint256,uint256)\":{\"params\":{\"firstPurchasedTokenId\":\"first purchased token ID (to get range add to quantity for max)\",\"pricePerToken\":\"price for each token\",\"quantity\":\"quantity of the minted nfts\",\"to\":\"address sale was made to\"}},\"SalesConfigChanged(address)\":{\"details\":\"To access new sales configuration, use getter function.\",\"params\":{\"changedBy\":\"Changed by user\"}},\"URIUpdated(string,bool)\":{\"params\":{\"baseURI\":\"The base URI for the collection.\",\"isRevealed\":\"Whether the collection is revealed.\"}}},\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"errors\":{\"Mint_SoldOut()\":[{\"notice\":\"NFT sold out\"}],\"Presale_Inactive()\":[{\"notice\":\"Presale is inactive\"}],\"Presale_MerkleNotApproved()\":[{\"notice\":\"Presale merkle root is invalid\"}],\"Presale_TooManyForAddress()\":[{\"notice\":\"Too many presale for address\"}],\"Purchase_TooManyForAddress()\":[{\"notice\":\"Too many purchase for address\"}],\"Purchase_WrongPrice(uint256)\":[{\"notice\":\"Wrong price for purchase\"}],\"Sale_Inactive()\":[{\"notice\":\"Sale is inactive\"}]},\"events\":{\"FundsWithdrawn(address,address,uint256,address,uint256)\":{\"notice\":\"Event emitted when the funds are withdrawn from the minting contract\"},\"Sale(address,uint256,uint256,uint256)\":{\"notice\":\"Event emitted for each sale\"},\"SalesConfigChanged(address)\":{\"notice\":\"Sales configuration has been changed\"},\"URIUpdated(string,bool)\":{\"notice\":\"Emitted when the collection is revealed.\"}},\"kind\":\"user\",\"methods\":{\"purchasePresale(uint256,uint256,uint256,bytes32[])\":{\"notice\":\"============================================================= PRESALE FUNCTIONS =============================================================\"},\"reveal(string)\":{\"notice\":\"============================================================= ADMIN FUNCTIONS =============================================================\"}},\"version\":1}},\"settings\":{\"compilationTarget\":{\"IERC721TestDrop.sol\":\"IERC721TestDrop\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":false,\"runs\":200},\"remappings\":[]},\"sources\":{\"IERC721TestDrop.sol\":{\"keccak256\":\"0xd502f907309cae5c9f308408065aca9b04879b6d9be565466486544b186f8155\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://ce6bd84d35dd412b86cadc99fa308c1a0f21817e3f320f7f9eac390a58367f7c\",\"dweb:/ipfs/QmaaYWFkKngsBh85YzbFnLifHEYKggKg1XqvnSLp9rwhd3\"]},\"ITestFeeManager.sol\":{\"keccak256\":\"0x1893cd08b03c6c02365141c6df0e23a39ff749b05bde2a9d3c5aee78a4de7e5b\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://7eee19d9483c63cfc1988e21d1d51958a2ee0ae64d7c7ac2cf80a1430370fa9a\",\"dweb:/ipfs/QmNVLipCNf41TZzSoC1GFiNfqGq3oigeHkWy5rULEysQtM\"]}},\"version\":1}",
+					"storageLayout": {
+						"storage": [],
+						"types": null
+					},
+					"userdoc": {
+						"errors": {
+							"Mint_SoldOut()": [
+								{
+									"notice": "NFT sold out"
+								}
+							],
+							"Presale_Inactive()": [
+								{
+									"notice": "Presale is inactive"
+								}
+							],
+							"Presale_MerkleNotApproved()": [
+								{
+									"notice": "Presale merkle root is invalid"
+								}
+							],
+							"Presale_TooManyForAddress()": [
+								{
+									"notice": "Too many presale for address"
+								}
+							],
+							"Purchase_TooManyForAddress()": [
+								{
+									"notice": "Too many purchase for address"
+								}
+							],
+							"Purchase_WrongPrice(uint256)": [
+								{
+									"notice": "Wrong price for purchase"
+								}
+							],
+							"Sale_Inactive()": [
+								{
+									"notice": "Sale is inactive"
+								}
+							]
+						},
+						"events": {
+							"FundsWithdrawn(address,address,uint256,address,uint256)": {
+								"notice": "Event emitted when the funds are withdrawn from the minting contract"
+							},
+							"Sale(address,uint256,uint256,uint256)": {
+								"notice": "Event emitted for each sale"
+							},
+							"SalesConfigChanged(address)": {
+								"notice": "Sales configuration has been changed"
+							},
+							"URIUpdated(string,bool)": {
+								"notice": "Emitted when the collection is revealed."
+							}
+						},
+						"kind": "user",
+						"methods": {
+							"purchasePresale(uint256,uint256,uint256,bytes32[])": {
+								"notice": "============================================================= PRESALE FUNCTIONS ============================================================="
+							},
+							"reveal(string)": {
+								"notice": "============================================================= ADMIN FUNCTIONS ============================================================="
+							}
+						},
+						"version": 1
+					}
+				}
+			},
+			"ITestFeeManager.sol": {
+				"ITestFeeManager": {
+					"abi": [
+						{
+							"inputs": [],
+							"name": "InvalidPlatformFeeBPS",
+							"type": "error"
+						},
+						{
+							"inputs": [],
+							"name": "InvalidTestFeeAddress",
+							"type": "error"
+						},
+						{
+							"anonymous": false,
+							"inputs": [
+								{
+									"indexed": false,
+									"internalType": "uint16",
+									"name": "platformFeeBPS",
+									"type": "uint16"
+								}
+							],
+							"name": "PlatformFeeSet",
+							"type": "event"
+						},
+						{
+							"anonymous": false,
+							"inputs": [
+								{
+									"indexed": false,
+									"internalType": "address",
+									"name": "testFeeAddress",
+									"type": "address"
+								}
+							],
+							"name": "TestFeeAddressSet",
+							"type": "event"
+						},
+						{
+							"inputs": [],
+							"name": "getTestFeeManager",
+							"outputs": [
+								{
+									"internalType": "address",
+									"name": "",
+									"type": "address"
+								}
+							],
+							"stateMutability": "view",
+							"type": "function"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "uint128",
+									"name": "requiredEtherValue",
+									"type": "uint128"
+								}
+							],
+							"name": "platformFee",
+							"outputs": [
+								{
+									"internalType": "uint128",
+									"name": "fee",
+									"type": "uint128"
+								}
+							],
+							"stateMutability": "view",
+							"type": "function"
+						},
+						{
+							"inputs": [],
+							"name": "platformFeeBPS",
+							"outputs": [
+								{
+									"internalType": "uint16",
+									"name": "",
+									"type": "uint16"
+								}
+							],
+							"stateMutability": "view",
+							"type": "function"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "uint16",
+									"name": "platformFeeBPS_",
+									"type": "uint16"
+								}
+							],
+							"name": "setPlatformFeeBPS",
+							"outputs": [],
+							"stateMutability": "nonpayable",
+							"type": "function"
+						},
+						{
+							"inputs": [
+								{
+									"internalType": "address",
+									"name": "testFeeAddress_",
+									"type": "address"
+								}
+							],
+							"name": "setTestFeeAddress",
+							"outputs": [],
+							"stateMutability": "nonpayable",
+							"type": "function"
+						},
+						{
+							"inputs": [],
+							"name": "testFeeAddress",
+							"outputs": [
+								{
+									"internalType": "address",
+									"name": "",
+									"type": "address"
+								}
+							],
+							"stateMutability": "view",
+							"type": "function"
+						}
+					],
+					"devdoc": {
+						"author": "https://github.com/chirag-bgh",
+						"errors": {
+							"InvalidPlatformFeeBPS()": [
+								{
+									"details": "The platform fee numerator must not exceed `_MAX_BPS`."
+								}
+							],
+							"InvalidTestFeeAddress()": [
+								{
+									"details": "The new `testFeeAddress` must not be address(0)."
+								}
+							]
+						},
+						"events": {
+							"PlatformFeeSet(uint16)": {
+								"details": "Emitted when the `platformFeeBPS` is changed."
+							},
+							"TestFeeAddressSet(address)": {
+								"details": "Emitted when the `testFeeAddress` is changed."
+							}
+						},
+						"kind": "dev",
+						"methods": {
+							"platformFee(uint128)": {
+								"details": "The platform fee for `requiredEtherValue`.",
+								"params": {
+									"requiredEtherValue": "The required Ether value for payment."
+								},
+								"returns": {
+									"fee": "The computed value."
+								}
+							},
+							"platformFeeBPS()": {
+								"details": "The numerator of the platform fee.",
+								"returns": {
+									"_0": "The configured value."
+								}
+							},
+							"setPlatformFeeBPS(uint16)": {
+								"details": "Sets the `platformFeePBS`. Calling conditions: - The caller must be the owner of the contract.",
+								"params": {
+									"platformFeeBPS_": "Platform fee amount in bps (basis points)."
+								}
+							},
+							"setTestFeeAddress(address)": {
+								"details": "Sets the `testFeeAddress`. Calling conditions: - The caller must be the owner of the contract.",
+								"params": {
+									"testFeeAddress_": "The test fee address."
+								}
+							},
+							"testFeeAddress()": {
+								"details": "The protocol's address that receives platform fees.",
+								"returns": {
+									"_0": "The configured value."
+								}
+							}
+						},
+						"title": "ITestFeeManager",
+						"version": 1
+					},
+					"evm": {
+						"assembly": "",
+						"bytecode": {
+							"functionDebugData": {},
+							"generatedSources": [],
+							"linkReferences": {},
+							"object": "",
+							"opcodes": "",
+							"sourceMap": ""
+						},
+						"deployedBytecode": {
+							"functionDebugData": {},
+							"generatedSources": [],
+							"immutableReferences": {},
+							"linkReferences": {},
+							"object": "",
+							"opcodes": "",
+							"sourceMap": ""
+						},
+						"gasEstimates": null,
+						"legacyAssembly": null,
+						"methodIdentifiers": {
+							"getTestFeeManager()": "e714942d",
+							"platformFee(uint128)": "0d411b21",
+							"platformFeeBPS()": "ebaaa3a1",
+							"setPlatformFeeBPS(uint16)": "193fd903",
+							"setTestFeeAddress(address)": "f24b9141",
+							"testFeeAddress()": "bfcf0a9e"
+						}
+					},
+					"metadata": "{\"compiler\":{\"version\":\"0.8.19+commit.7dd6d404\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"InvalidPlatformFeeBPS\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidTestFeeAddress\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint16\",\"name\":\"platformFeeBPS\",\"type\":\"uint16\"}],\"name\":\"PlatformFeeSet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"testFeeAddress\",\"type\":\"address\"}],\"name\":\"TestFeeAddressSet\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"getTestFeeManager\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint128\",\"name\":\"requiredEtherValue\",\"type\":\"uint128\"}],\"name\":\"platformFee\",\"outputs\":[{\"internalType\":\"uint128\",\"name\":\"fee\",\"type\":\"uint128\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"platformFeeBPS\",\"outputs\":[{\"internalType\":\"uint16\",\"name\":\"\",\"type\":\"uint16\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint16\",\"name\":\"platformFeeBPS_\",\"type\":\"uint16\"}],\"name\":\"setPlatformFeeBPS\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"testFeeAddress_\",\"type\":\"address\"}],\"name\":\"setTestFeeAddress\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"testFeeAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"author\":\"https://github.com/chirag-bgh\",\"errors\":{\"InvalidPlatformFeeBPS()\":[{\"details\":\"The platform fee numerator must not exceed `_MAX_BPS`.\"}],\"InvalidTestFeeAddress()\":[{\"details\":\"The new `testFeeAddress` must not be address(0).\"}]},\"events\":{\"PlatformFeeSet(uint16)\":{\"details\":\"Emitted when the `platformFeeBPS` is changed.\"},\"TestFeeAddressSet(address)\":{\"details\":\"Emitted when the `testFeeAddress` is changed.\"}},\"kind\":\"dev\",\"methods\":{\"platformFee(uint128)\":{\"details\":\"The platform fee for `requiredEtherValue`.\",\"params\":{\"requiredEtherValue\":\"The required Ether value for payment.\"},\"returns\":{\"fee\":\"The computed value.\"}},\"platformFeeBPS()\":{\"details\":\"The numerator of the platform fee.\",\"returns\":{\"_0\":\"The configured value.\"}},\"setPlatformFeeBPS(uint16)\":{\"details\":\"Sets the `platformFeePBS`. Calling conditions: - The caller must be the owner of the contract.\",\"params\":{\"platformFeeBPS_\":\"Platform fee amount in bps (basis points).\"}},\"setTestFeeAddress(address)\":{\"details\":\"Sets the `testFeeAddress`. Calling conditions: - The caller must be the owner of the contract.\",\"params\":{\"testFeeAddress_\":\"The test fee address.\"}},\"testFeeAddress()\":{\"details\":\"The protocol's address that receives platform fees.\",\"returns\":{\"_0\":\"The configured value.\"}}},\"title\":\"ITestFeeManager\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"ITestFeeManager.sol\":\"ITestFeeManager\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":false,\"runs\":200},\"remappings\":[]},\"sources\":{\"ITestFeeManager.sol\":{\"keccak256\":\"0x1893cd08b03c6c02365141c6df0e23a39ff749b05bde2a9d3c5aee78a4de7e5b\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://7eee19d9483c63cfc1988e21d1d51958a2ee0ae64d7c7ac2cf80a1430370fa9a\",\"dweb:/ipfs/QmNVLipCNf41TZzSoC1GFiNfqGq3oigeHkWy5rULEysQtM\"]}},\"version\":1}",
+					"storageLayout": {
+						"storage": [],
+						"types": null
+					},
+					"userdoc": {
+						"kind": "user",
+						"methods": {},
+						"version": 1
+					}
+				}
+			}
+		},
+		"sources": {
+			"IERC721TestDrop.sol": {
+				"ast": {
+					"absolutePath": "IERC721TestDrop.sol",
+					"exportedSymbols": {
+						"IERC721TestDrop": [
+							327
+						],
+						"ITestFeeManager": [
+							384
+						]
+					},
+					"id": 328,
+					"license": "MIT",
+					"nodeType": "SourceUnit",
+					"nodes": [
+						{
+							"id": 1,
+							"literals": [
+								"solidity",
+								"^",
+								"0.8",
+								".16"
+							],
+							"nodeType": "PragmaDirective",
+							"src": "32:24:0"
+						},
+						{
+							"absolutePath": "ITestFeeManager.sol",
+							"file": "./ITestFeeManager.sol",
+							"id": 3,
+							"nameLocation": "-1:-1:-1",
+							"nodeType": "ImportDirective",
+							"scope": 328,
+							"sourceUnit": 385,
+							"src": "369:54:0",
+							"symbolAliases": [
+								{
+									"foreign": {
+										"id": 2,
+										"name": "ITestFeeManager",
+										"nodeType": "Identifier",
+										"overloadedDeclarations": [],
+										"referencedDeclaration": 384,
+										"src": "377:15:0",
+										"typeDescriptions": {}
+									},
+									"nameLocation": "-1:-1:-1"
+								}
+							],
+							"unitAlias": ""
+						},
+						{
+							"abstract": false,
+							"baseContracts": [],
+							"canonicalName": "IERC721TestDrop",
+							"contractDependencies": [],
+							"contractKind": "interface",
+							"documentation": {
+								"id": 4,
+								"nodeType": "StructuredDocumentation",
+								"src": "425:48:0",
+								"text": " @dev Interface for ERC721TestDrop.sol"
+							},
+							"fullyImplemented": false,
+							"id": 327,
+							"linearizedBaseContracts": [
+								327
+							],
+							"name": "IERC721TestDrop",
+							"nameLocation": "485:15:0",
+							"nodeType": "ContractDefinition",
+							"nodes": [
+								{
+									"canonicalName": "IERC721TestDrop.Configuration",
+									"id": 14,
+									"members": [
+										{
+											"constant": false,
+											"id": 7,
+											"mutability": "mutable",
+											"name": "editionSize",
+											"nameLocation": "692:11:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 14,
+											"src": "685:18:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint64",
+												"typeString": "uint64"
+											},
+											"typeName": {
+												"id": 6,
+												"name": "uint64",
+												"nodeType": "ElementaryTypeName",
+												"src": "685:6:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint64",
+													"typeString": "uint64"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 10,
+											"mutability": "mutable",
+											"name": "royaltyBPS",
+											"nameLocation": "778:10:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 14,
+											"src": "771:17:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint16",
+												"typeString": "uint16"
+											},
+											"typeName": {
+												"id": 9,
+												"name": "uint16",
+												"nodeType": "ElementaryTypeName",
+												"src": "771:6:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint16",
+													"typeString": "uint16"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 13,
+											"mutability": "mutable",
+											"name": "fundsRecipient",
+											"nameLocation": "876:14:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 14,
+											"src": "860:30:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_address_payable",
+												"typeString": "address payable"
+											},
+											"typeName": {
+												"id": 12,
+												"name": "address",
+												"nodeType": "ElementaryTypeName",
+												"src": "860:15:0",
+												"stateMutability": "payable",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address_payable",
+													"typeString": "address payable"
+												}
+											},
+											"visibility": "internal"
+										}
+									],
+									"name": "Configuration",
+									"nameLocation": "584:13:0",
+									"nodeType": "StructDefinition",
+									"scope": 327,
+									"src": "577:320:0",
+									"visibility": "public"
+								},
+								{
+									"canonicalName": "IERC721TestDrop.SalesConfiguration",
+									"id": 36,
+									"members": [
+										{
+											"constant": false,
+											"id": 17,
+											"mutability": "mutable",
+											"name": "publicSalePrice",
+											"nameLocation": "1110:15:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 36,
+											"src": "1102:23:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint104",
+												"typeString": "uint104"
+											},
+											"typeName": {
+												"id": 16,
+												"name": "uint104",
+												"nodeType": "ElementaryTypeName",
+												"src": "1102:7:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint104",
+													"typeString": "uint104"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 20,
+											"mutability": "mutable",
+											"name": "maxSalePurchasePerAddress",
+											"nameLocation": "1287:25:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 36,
+											"src": "1280:32:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint32",
+												"typeString": "uint32"
+											},
+											"typeName": {
+												"id": 19,
+												"name": "uint32",
+												"nodeType": "ElementaryTypeName",
+												"src": "1280:6:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint32",
+													"typeString": "uint32"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 23,
+											"mutability": "mutable",
+											"name": "publicSaleStart",
+											"nameLocation": "1461:15:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 36,
+											"src": "1454:22:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint64",
+												"typeString": "uint64"
+											},
+											"typeName": {
+												"id": 22,
+												"name": "uint64",
+												"nodeType": "ElementaryTypeName",
+												"src": "1454:6:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint64",
+													"typeString": "uint64"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 26,
+											"mutability": "mutable",
+											"name": "publicSaleEnd",
+											"nameLocation": "1554:13:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 36,
+											"src": "1547:20:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint64",
+												"typeString": "uint64"
+											},
+											"typeName": {
+												"id": 25,
+												"name": "uint64",
+												"nodeType": "ElementaryTypeName",
+												"src": "1547:6:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint64",
+													"typeString": "uint64"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 29,
+											"mutability": "mutable",
+											"name": "presaleStart",
+											"nameLocation": "1662:12:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 36,
+											"src": "1655:19:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint64",
+												"typeString": "uint64"
+											},
+											"typeName": {
+												"id": 28,
+												"name": "uint64",
+												"nodeType": "ElementaryTypeName",
+												"src": "1655:6:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint64",
+													"typeString": "uint64"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 32,
+											"mutability": "mutable",
+											"name": "presaleEnd",
+											"nameLocation": "1733:10:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 36,
+											"src": "1726:17:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint64",
+												"typeString": "uint64"
+											},
+											"typeName": {
+												"id": 31,
+												"name": "uint64",
+												"nodeType": "ElementaryTypeName",
+												"src": "1726:6:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint64",
+													"typeString": "uint64"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 35,
+											"mutability": "mutable",
+											"name": "presaleMerkleRoot",
+											"nameLocation": "1801:17:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 36,
+											"src": "1793:25:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_bytes32",
+												"typeString": "bytes32"
+											},
+											"typeName": {
+												"id": 34,
+												"name": "bytes32",
+												"nodeType": "ElementaryTypeName",
+												"src": "1793:7:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_bytes32",
+													"typeString": "bytes32"
+												}
+											},
+											"visibility": "internal"
+										}
+									],
+									"name": "SalesConfiguration",
+									"nameLocation": "991:18:0",
+									"nodeType": "StructDefinition",
+									"scope": 327,
+									"src": "984:841:0",
+									"visibility": "public"
+								},
+								{
+									"canonicalName": "IERC721TestDrop.SaleDetails",
+									"id": 59,
+									"members": [
+										{
+											"constant": false,
+											"id": 38,
+											"mutability": "mutable",
+											"name": "publicSaleActive",
+											"nameLocation": "1996:16:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 59,
+											"src": "1991:21:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_bool",
+												"typeString": "bool"
+											},
+											"typeName": {
+												"id": 37,
+												"name": "bool",
+												"nodeType": "ElementaryTypeName",
+												"src": "1991:4:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_bool",
+													"typeString": "bool"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 40,
+											"mutability": "mutable",
+											"name": "presaleActive",
+											"nameLocation": "2027:13:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 59,
+											"src": "2022:18:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_bool",
+												"typeString": "bool"
+											},
+											"typeName": {
+												"id": 39,
+												"name": "bool",
+												"nodeType": "ElementaryTypeName",
+												"src": "2022:4:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_bool",
+													"typeString": "bool"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 42,
+											"mutability": "mutable",
+											"name": "publicSalePrice",
+											"nameLocation": "2091:15:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 59,
+											"src": "2083:23:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint256",
+												"typeString": "uint256"
+											},
+											"typeName": {
+												"id": 41,
+												"name": "uint256",
+												"nodeType": "ElementaryTypeName",
+												"src": "2083:7:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 44,
+											"mutability": "mutable",
+											"name": "publicSaleStart",
+											"nameLocation": "2169:15:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 59,
+											"src": "2162:22:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint64",
+												"typeString": "uint64"
+											},
+											"typeName": {
+												"id": 43,
+												"name": "uint64",
+												"nodeType": "ElementaryTypeName",
+												"src": "2162:6:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint64",
+													"typeString": "uint64"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 46,
+											"mutability": "mutable",
+											"name": "publicSaleEnd",
+											"nameLocation": "2201:13:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 59,
+											"src": "2194:20:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint64",
+												"typeString": "uint64"
+											},
+											"typeName": {
+												"id": 45,
+												"name": "uint64",
+												"nodeType": "ElementaryTypeName",
+												"src": "2194:6:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint64",
+													"typeString": "uint64"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 48,
+											"mutability": "mutable",
+											"name": "presaleStart",
+											"nameLocation": "2273:12:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 59,
+											"src": "2266:19:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint64",
+												"typeString": "uint64"
+											},
+											"typeName": {
+												"id": 47,
+												"name": "uint64",
+												"nodeType": "ElementaryTypeName",
+												"src": "2266:6:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint64",
+													"typeString": "uint64"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 50,
+											"mutability": "mutable",
+											"name": "presaleEnd",
+											"nameLocation": "2302:10:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 59,
+											"src": "2295:17:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint64",
+												"typeString": "uint64"
+											},
+											"typeName": {
+												"id": 49,
+												"name": "uint64",
+												"nodeType": "ElementaryTypeName",
+												"src": "2295:6:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint64",
+													"typeString": "uint64"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 52,
+											"mutability": "mutable",
+											"name": "presaleMerkleRoot",
+											"nameLocation": "2413:17:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 59,
+											"src": "2405:25:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_bytes32",
+												"typeString": "bytes32"
+											},
+											"typeName": {
+												"id": 51,
+												"name": "bytes32",
+												"nodeType": "ElementaryTypeName",
+												"src": "2405:7:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_bytes32",
+													"typeString": "bytes32"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 54,
+											"mutability": "mutable",
+											"name": "maxSalePurchasePerAddress",
+											"nameLocation": "2518:25:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 59,
+											"src": "2510:33:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint256",
+												"typeString": "uint256"
+											},
+											"typeName": {
+												"id": 53,
+												"name": "uint256",
+												"nodeType": "ElementaryTypeName",
+												"src": "2510:7:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 56,
+											"mutability": "mutable",
+											"name": "totalMinted",
+											"nameLocation": "2652:11:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 59,
+											"src": "2644:19:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint256",
+												"typeString": "uint256"
+											},
+											"typeName": {
+												"id": 55,
+												"name": "uint256",
+												"nodeType": "ElementaryTypeName",
+												"src": "2644:7:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 58,
+											"mutability": "mutable",
+											"name": "maxSupply",
+											"nameLocation": "2719:9:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 59,
+											"src": "2711:17:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint256",
+												"typeString": "uint256"
+											},
+											"typeName": {
+												"id": 57,
+												"name": "uint256",
+												"nodeType": "ElementaryTypeName",
+												"src": "2711:7:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												}
+											},
+											"visibility": "internal"
+										}
+									],
+									"name": "SaleDetails",
+									"nameLocation": "1908:11:0",
+									"nodeType": "StructDefinition",
+									"scope": 327,
+									"src": "1901:834:0",
+									"visibility": "public"
+								},
+								{
+									"canonicalName": "IERC721TestDrop.AddressMintDetails",
+									"id": 69,
+									"members": [
+										{
+											"constant": false,
+											"id": 62,
+											"mutability": "mutable",
+											"name": "totalMints",
+											"nameLocation": "2918:10:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 69,
+											"src": "2910:18:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint256",
+												"typeString": "uint256"
+											},
+											"typeName": {
+												"id": 61,
+												"name": "uint256",
+												"nodeType": "ElementaryTypeName",
+												"src": "2910:7:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 65,
+											"mutability": "mutable",
+											"name": "presaleMints",
+											"nameLocation": "3005:12:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 69,
+											"src": "2997:20:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint256",
+												"typeString": "uint256"
+											},
+											"typeName": {
+												"id": 64,
+												"name": "uint256",
+												"nodeType": "ElementaryTypeName",
+												"src": "2997:7:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												}
+											},
+											"visibility": "internal"
+										},
+										{
+											"constant": false,
+											"id": 68,
+											"mutability": "mutable",
+											"name": "publicMints",
+											"nameLocation": "3093:11:0",
+											"nodeType": "VariableDeclaration",
+											"scope": 69,
+											"src": "3085:19:0",
+											"stateVariable": false,
+											"storageLocation": "default",
+											"typeDescriptions": {
+												"typeIdentifier": "t_uint256",
+												"typeString": "uint256"
+											},
+											"typeName": {
+												"id": 67,
+												"name": "uint256",
+												"nodeType": "ElementaryTypeName",
+												"src": "3085:7:0",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												}
+											},
+											"visibility": "internal"
+										}
+									],
+									"name": "AddressMintDetails",
+									"nameLocation": "2824:18:0",
+									"nodeType": "StructDefinition",
+									"scope": 327,
+									"src": "2817:294:0",
+									"visibility": "public"
+								},
+								{
+									"anonymous": false,
+									"documentation": {
+										"id": 70,
+										"nodeType": "StructuredDocumentation",
+										"src": "3296:270:0",
+										"text": " @dev Emitted upon an airdrop.\n @param to          The recipients of the airdrop.\n @param quantity    The number of tokens airdropped to each address in `to`.\n @param fromTokenId The first token ID minted to the first address in `to`."
+									},
+									"eventSelector": "fe9ac969bdc4dbb3461e515fb1f4b43a4bf6d21274b0c195082e75bcb586ead3",
+									"id": 79,
+									"name": "Airdropped",
+									"nameLocation": "3577:10:0",
+									"nodeType": "EventDefinition",
+									"parameters": {
+										"id": 78,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 73,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "to",
+												"nameLocation": "3598:2:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 79,
+												"src": "3588:12:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_array$_t_address_$dyn_memory_ptr",
+													"typeString": "address[]"
+												},
+												"typeName": {
+													"baseType": {
+														"id": 71,
+														"name": "address",
+														"nodeType": "ElementaryTypeName",
+														"src": "3588:7:0",
+														"stateMutability": "nonpayable",
+														"typeDescriptions": {
+															"typeIdentifier": "t_address",
+															"typeString": "address"
+														}
+													},
+													"id": 72,
+													"nodeType": "ArrayTypeName",
+													"src": "3588:9:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_array$_t_address_$dyn_storage_ptr",
+														"typeString": "address[]"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 75,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "quantity",
+												"nameLocation": "3610:8:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 79,
+												"src": "3602:16:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 74,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "3602:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 77,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "fromTokenId",
+												"nameLocation": "3628:11:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 79,
+												"src": "3620:19:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 76,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "3620:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "3587:53:0"
+									},
+									"src": "3571:70:0"
+								},
+								{
+									"anonymous": false,
+									"documentation": {
+										"id": 80,
+										"nodeType": "StructuredDocumentation",
+										"src": "3647:183:0",
+										"text": " @notice Emitted when the collection is revealed.\n @param baseURI The base URI for the collection.\n @param isRevealed Whether the collection is revealed."
+									},
+									"eventSelector": "518159e6371cd5b4c2aadcb329217344ee78b366cd3730e987f31878702401b6",
+									"id": 86,
+									"name": "URIUpdated",
+									"nameLocation": "3841:10:0",
+									"nodeType": "EventDefinition",
+									"parameters": {
+										"id": 85,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 82,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "baseURI",
+												"nameLocation": "3859:7:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 86,
+												"src": "3852:14:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_string_memory_ptr",
+													"typeString": "string"
+												},
+												"typeName": {
+													"id": 81,
+													"name": "string",
+													"nodeType": "ElementaryTypeName",
+													"src": "3852:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_string_storage_ptr",
+														"typeString": "string"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 84,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "isRevealed",
+												"nameLocation": "3873:10:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 86,
+												"src": "3868:15:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_bool",
+													"typeString": "bool"
+												},
+												"typeName": {
+													"id": 83,
+													"name": "bool",
+													"nodeType": "ElementaryTypeName",
+													"src": "3868:4:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_bool",
+														"typeString": "bool"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "3851:33:0"
+									},
+									"src": "3835:50:0"
+								},
+								{
+									"anonymous": false,
+									"documentation": {
+										"id": 87,
+										"nodeType": "StructuredDocumentation",
+										"src": "3891:203:0",
+										"text": " @dev Emitted upon a mint.\n @param to          The address to mint to.\n @param quantity    The number of minted.\n @param _firstMintedTokenId The first token ID minted."
+									},
+									"eventSelector": "25b428dfde728ccfaddad7e29e4ac23c24ed7fd1a6e3e3f91894a9a073f5dfff",
+									"id": 95,
+									"name": "Minted",
+									"nameLocation": "4105:6:0",
+									"nodeType": "EventDefinition",
+									"parameters": {
+										"id": 94,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 89,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "to",
+												"nameLocation": "4120:2:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 95,
+												"src": "4112:10:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 88,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "4112:7:0",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 91,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "quantity",
+												"nameLocation": "4132:8:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 95,
+												"src": "4124:16:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 90,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "4124:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 93,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "_firstMintedTokenId",
+												"nameLocation": "4150:19:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 95,
+												"src": "4142:27:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 92,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "4142:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "4111:59:0"
+									},
+									"src": "4099:72:0"
+								},
+								{
+									"anonymous": false,
+									"documentation": {
+										"id": 96,
+										"nodeType": "StructuredDocumentation",
+										"src": "4177:134:0",
+										"text": " @dev Emitted when the `operatorFilteringEnabled` is set.\n @param operatorFilteringEnabled_ The boolean value."
+									},
+									"eventSelector": "df13a96ac57161f0b62aae644560a12a80c1877faac821ee18874355ff1ab73b",
+									"id": 100,
+									"name": "OperatorFilteringEnablededSet",
+									"nameLocation": "4322:29:0",
+									"nodeType": "EventDefinition",
+									"parameters": {
+										"id": 99,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 98,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "operatorFilteringEnabled_",
+												"nameLocation": "4357:25:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 100,
+												"src": "4352:30:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_bool",
+													"typeString": "bool"
+												},
+												"typeName": {
+													"id": 97,
+													"name": "bool",
+													"nodeType": "ElementaryTypeName",
+													"src": "4352:4:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_bool",
+														"typeString": "bool"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "4351:32:0"
+									},
+									"src": "4316:68:0"
+								},
+								{
+									"anonymous": false,
+									"documentation": {
+										"id": 101,
+										"nodeType": "StructuredDocumentation",
+										"src": "4390:122:0",
+										"text": " @dev Emitted when the `royaltyBPS` is set.\n @param bps The new royalty, measured in basis points."
+									},
+									"eventSelector": "092d0aa94dc2b378c7fd77faaaf4cb3fd8336ae247cd486fb593726705772ac0",
+									"id": 105,
+									"name": "RoyaltySet",
+									"nameLocation": "4523:10:0",
+									"nodeType": "EventDefinition",
+									"parameters": {
+										"id": 104,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 103,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "bps",
+												"nameLocation": "4541:3:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 105,
+												"src": "4534:10:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint16",
+													"typeString": "uint16"
+												},
+												"typeName": {
+													"id": 102,
+													"name": "uint16",
+													"nodeType": "ElementaryTypeName",
+													"src": "4534:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint16",
+														"typeString": "uint16"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "4533:12:0"
+									},
+									"src": "4517:29:0"
+								},
+								{
+									"anonymous": false,
+									"documentation": {
+										"id": 106,
+										"nodeType": "StructuredDocumentation",
+										"src": "4552:223:0",
+										"text": " @dev Emitted when the metadata is frozen (e.g.: `baseURI` can no longer be changed).\n @param baseURI        The base URI of the edition.\n @param contractURI    The contract URI of the edition."
+									},
+									"eventSelector": "3cd3338a64f0386bca46b40bd96e90a61be656a5183dc54b430d8626e1333273",
+									"id": 112,
+									"name": "MetadataFrozen",
+									"nameLocation": "4786:14:0",
+									"nodeType": "EventDefinition",
+									"parameters": {
+										"id": 111,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 108,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "baseURI",
+												"nameLocation": "4808:7:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 112,
+												"src": "4801:14:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_string_memory_ptr",
+													"typeString": "string"
+												},
+												"typeName": {
+													"id": 107,
+													"name": "string",
+													"nodeType": "ElementaryTypeName",
+													"src": "4801:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_string_storage_ptr",
+														"typeString": "string"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 110,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "contractURI",
+												"nameLocation": "4824:11:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 112,
+												"src": "4817:18:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_string_memory_ptr",
+													"typeString": "string"
+												},
+												"typeName": {
+													"id": 109,
+													"name": "string",
+													"nodeType": "ElementaryTypeName",
+													"src": "4817:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_string_storage_ptr",
+														"typeString": "string"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "4800:36:0"
+									},
+									"src": "4780:57:0"
+								},
+								{
+									"anonymous": false,
+									"documentation": {
+										"id": 113,
+										"nodeType": "StructuredDocumentation",
+										"src": "4843:384:0",
+										"text": "@notice Event emitted when the funds are withdrawn from the minting contract\n @param withdrawnBy address that issued the withdraw\n @param withdrawnTo address that the funds were withdrawn to\n @param amount amount that was withdrawn\n @param feeRecipient user getting withdraw fee (if any)\n @param feeAmount amount of the fee getting sent (if any)"
+									},
+									"eventSelector": "8a95554e4c9dcaaf33f247387f2ee77390780487d3365e3a804788791a1df500",
+									"id": 125,
+									"name": "FundsWithdrawn",
+									"nameLocation": "5238:14:0",
+									"nodeType": "EventDefinition",
+									"parameters": {
+										"id": 124,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 115,
+												"indexed": true,
+												"mutability": "mutable",
+												"name": "withdrawnBy",
+												"nameLocation": "5278:11:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 125,
+												"src": "5262:27:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 114,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "5262:7:0",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 117,
+												"indexed": true,
+												"mutability": "mutable",
+												"name": "withdrawnTo",
+												"nameLocation": "5315:11:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 125,
+												"src": "5299:27:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 116,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "5299:7:0",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 119,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "amount",
+												"nameLocation": "5344:6:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 125,
+												"src": "5336:14:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 118,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "5336:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 121,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "feeRecipient",
+												"nameLocation": "5368:12:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 125,
+												"src": "5360:20:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 120,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "5360:7:0",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 123,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "feeAmount",
+												"nameLocation": "5398:9:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 125,
+												"src": "5390:17:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 122,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "5390:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "5252:161:0"
+									},
+									"src": "5232:182:0"
+								},
+								{
+									"anonymous": false,
+									"documentation": {
+										"id": 126,
+										"nodeType": "StructuredDocumentation",
+										"src": "5420:285:0",
+										"text": "@notice Event emitted for each sale\n @param to address sale was made to\n @param quantity quantity of the minted nfts\n @param pricePerToken price for each token\n @param firstPurchasedTokenId first purchased token ID (to get range add to quantity for max)"
+									},
+									"eventSelector": "4e26b0356a15833a75d497ecc40ebbb716b99466ed0dba9454f1fff451e25a90",
+									"id": 136,
+									"name": "Sale",
+									"nameLocation": "5716:4:0",
+									"nodeType": "EventDefinition",
+									"parameters": {
+										"id": 135,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 128,
+												"indexed": true,
+												"mutability": "mutable",
+												"name": "to",
+												"nameLocation": "5746:2:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 136,
+												"src": "5730:18:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 127,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "5730:7:0",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 130,
+												"indexed": true,
+												"mutability": "mutable",
+												"name": "quantity",
+												"nameLocation": "5774:8:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 136,
+												"src": "5758:24:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 129,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "5758:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 132,
+												"indexed": true,
+												"mutability": "mutable",
+												"name": "pricePerToken",
+												"nameLocation": "5808:13:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 136,
+												"src": "5792:29:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 131,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "5792:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 134,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "firstPurchasedTokenId",
+												"nameLocation": "5839:21:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 136,
+												"src": "5831:29:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 133,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "5831:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "5720:146:0"
+									},
+									"src": "5710:157:0"
+								},
+								{
+									"anonymous": false,
+									"documentation": {
+										"id": 137,
+										"nodeType": "StructuredDocumentation",
+										"src": "5873:158:0",
+										"text": "@notice Sales configuration has been changed\n @dev To access new sales configuration, use getter function.\n @param changedBy Changed by user"
+									},
+									"eventSelector": "c1ff5e4744ac8dd2b8027a10e3723b165975297501c71c4e7dcb8796d96375db",
+									"id": 141,
+									"name": "SalesConfigChanged",
+									"nameLocation": "6042:18:0",
+									"nodeType": "EventDefinition",
+									"parameters": {
+										"id": 140,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 139,
+												"indexed": true,
+												"mutability": "mutable",
+												"name": "changedBy",
+												"nameLocation": "6077:9:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 141,
+												"src": "6061:25:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 138,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "6061:7:0",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "6060:27:0"
+									},
+									"src": "6036:52:0"
+								},
+								{
+									"anonymous": false,
+									"eventSelector": "af497693a87db12ca89131a31edbb3db4bb5702dfb284e8ae7427d185f09112d",
+									"id": 145,
+									"name": "ContractURISet",
+									"nameLocation": "6100:14:0",
+									"nodeType": "EventDefinition",
+									"parameters": {
+										"id": 144,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 143,
+												"indexed": true,
+												"mutability": "mutable",
+												"name": "_contractURI",
+												"nameLocation": "6130:12:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 145,
+												"src": "6115:27:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_string_memory_ptr",
+													"typeString": "string"
+												},
+												"typeName": {
+													"id": 142,
+													"name": "string",
+													"nodeType": "ElementaryTypeName",
+													"src": "6115:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_string_storage_ptr",
+														"typeString": "string"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "6114:29:0"
+									},
+									"src": "6094:50:0"
+								},
+								{
+									"anonymous": false,
+									"eventSelector": "f9c7803e94e0d3c02900d8a90893a6d5e90dd04d32a4cfe825520f82bf9f32f6",
+									"id": 149,
+									"name": "BaseURISet",
+									"nameLocation": "6156:10:0",
+									"nodeType": "EventDefinition",
+									"parameters": {
+										"id": 148,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 147,
+												"indexed": true,
+												"mutability": "mutable",
+												"name": "_baseURI",
+												"nameLocation": "6182:8:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 149,
+												"src": "6167:23:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_string_memory_ptr",
+													"typeString": "string"
+												},
+												"typeName": {
+													"id": 146,
+													"name": "string",
+													"nodeType": "ElementaryTypeName",
+													"src": "6167:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_string_storage_ptr",
+														"typeString": "string"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "6166:25:0"
+									},
+									"src": "6150:42:0"
+								},
+								{
+									"documentation": {
+										"id": 150,
+										"nodeType": "StructuredDocumentation",
+										"src": "6378:48:0",
+										"text": " @dev No addresses to airdrop."
+									},
+									"errorSelector": "e10344d5",
+									"id": 152,
+									"name": "NoAddressesToAirdrop",
+									"nameLocation": "6437:20:0",
+									"nodeType": "ErrorDefinition",
+									"parameters": {
+										"id": 151,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "6457:2:0"
+									},
+									"src": "6431:29:0"
+								},
+								{
+									"documentation": {
+										"id": 153,
+										"nodeType": "StructuredDocumentation",
+										"src": "6493:28:0",
+										"text": "@notice Sale is inactive"
+									},
+									"errorSelector": "f12dcc7f",
+									"id": 155,
+									"name": "Sale_Inactive",
+									"nameLocation": "6532:13:0",
+									"nodeType": "ErrorDefinition",
+									"parameters": {
+										"id": 154,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "6545:2:0"
+									},
+									"src": "6526:22:0"
+								},
+								{
+									"documentation": {
+										"id": 156,
+										"nodeType": "StructuredDocumentation",
+										"src": "6553:31:0",
+										"text": "@notice Presale is inactive"
+									},
+									"errorSelector": "95ed3c1a",
+									"id": 158,
+									"name": "Presale_Inactive",
+									"nameLocation": "6595:16:0",
+									"nodeType": "ErrorDefinition",
+									"parameters": {
+										"id": 157,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "6611:2:0"
+									},
+									"src": "6589:25:0"
+								},
+								{
+									"documentation": {
+										"id": 159,
+										"nodeType": "StructuredDocumentation",
+										"src": "6619:42:0",
+										"text": "@notice Presale merkle root is invalid"
+									},
+									"errorSelector": "85b70e52",
+									"id": 161,
+									"name": "Presale_MerkleNotApproved",
+									"nameLocation": "6672:25:0",
+									"nodeType": "ErrorDefinition",
+									"parameters": {
+										"id": 160,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "6697:2:0"
+									},
+									"src": "6666:34:0"
+								},
+								{
+									"documentation": {
+										"id": 162,
+										"nodeType": "StructuredDocumentation",
+										"src": "6705:36:0",
+										"text": "@notice Wrong price for purchase"
+									},
+									"errorSelector": "6a1c179e",
+									"id": 166,
+									"name": "Purchase_WrongPrice",
+									"nameLocation": "6752:19:0",
+									"nodeType": "ErrorDefinition",
+									"parameters": {
+										"id": 165,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 164,
+												"mutability": "mutable",
+												"name": "correctPrice",
+												"nameLocation": "6780:12:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 166,
+												"src": "6772:20:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 163,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "6772:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "6771:22:0"
+									},
+									"src": "6746:48:0"
+								},
+								{
+									"documentation": {
+										"id": 167,
+										"nodeType": "StructuredDocumentation",
+										"src": "6799:24:0",
+										"text": "@notice NFT sold out"
+									},
+									"errorSelector": "717c5130",
+									"id": 169,
+									"name": "Mint_SoldOut",
+									"nameLocation": "6834:12:0",
+									"nodeType": "ErrorDefinition",
+									"parameters": {
+										"id": 168,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "6846:2:0"
+									},
+									"src": "6828:21:0"
+								},
+								{
+									"documentation": {
+										"id": 170,
+										"nodeType": "StructuredDocumentation",
+										"src": "6854:41:0",
+										"text": "@notice Too many purchase for address"
+									},
+									"errorSelector": "220ae94c",
+									"id": 172,
+									"name": "Purchase_TooManyForAddress",
+									"nameLocation": "6906:26:0",
+									"nodeType": "ErrorDefinition",
+									"parameters": {
+										"id": 171,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "6932:2:0"
+									},
+									"src": "6900:35:0"
+								},
+								{
+									"documentation": {
+										"id": 173,
+										"nodeType": "StructuredDocumentation",
+										"src": "6940:40:0",
+										"text": "@notice Too many presale for address"
+									},
+									"errorSelector": "a7b32bb1",
+									"id": 175,
+									"name": "Presale_TooManyForAddress",
+									"nameLocation": "6991:25:0",
+									"nodeType": "ErrorDefinition",
+									"parameters": {
+										"id": 174,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "7016:2:0"
+									},
+									"src": "6985:34:0"
+								},
+								{
+									"errorSelector": "d3c0b1f4",
+									"id": 177,
+									"name": "WithdrawFundsSendFailure",
+									"nameLocation": "7031:24:0",
+									"nodeType": "ErrorDefinition",
+									"parameters": {
+										"id": 176,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "7055:2:0"
+									},
+									"src": "7025:33:0"
+								},
+								{
+									"documentation": {
+										"id": 178,
+										"nodeType": "StructuredDocumentation",
+										"src": "7064:76:0",
+										"text": " @dev The given `InvalidPayoutAddress` address is invalid."
+									},
+									"errorSelector": "b942d920",
+									"id": 180,
+									"name": "InvalidPayoutAddress",
+									"nameLocation": "7151:20:0",
+									"nodeType": "ErrorDefinition",
+									"parameters": {
+										"id": 179,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "7171:2:0"
+									},
+									"src": "7145:29:0"
+								},
+								{
+									"anonymous": false,
+									"documentation": {
+										"id": 181,
+										"nodeType": "StructuredDocumentation",
+										"src": "7180:130:0",
+										"text": " @dev Emitted when the `payoutAddress` is set.\n @param payoutAddress The address of the funding recipient."
+									},
+									"eventSelector": "8442bcb3c78bbc2d0a1a10dd2c2ba99ef8058b97c2843a976f7ca7edbfe9d3f1",
+									"id": 185,
+									"name": "PayoutAddressSet",
+									"nameLocation": "7321:16:0",
+									"nodeType": "EventDefinition",
+									"parameters": {
+										"id": 184,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 183,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "payoutAddress",
+												"nameLocation": "7346:13:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 185,
+												"src": "7338:21:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 182,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "7338:7:0",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "7337:23:0"
+									},
+									"src": "7315:46:0"
+								},
+								{
+									"documentation": {
+										"id": 186,
+										"nodeType": "StructuredDocumentation",
+										"src": "7367:58:0",
+										"text": " @dev The given `royaltyBPS` is invalid."
+									},
+									"errorSelector": "ca886438",
+									"id": 188,
+									"name": "InvalidRoyaltyBPS",
+									"nameLocation": "7436:17:0",
+									"nodeType": "ErrorDefinition",
+									"parameters": {
+										"id": 187,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "7453:2:0"
+									},
+									"src": "7430:26:0"
+								},
+								{
+									"documentation": {
+										"id": 189,
+										"nodeType": "StructuredDocumentation",
+										"src": "7462:100:0",
+										"text": " @dev The edition's metadata is frozen (e.g.: `baseURI` can no longer be changed)."
+									},
+									"errorSelector": "b087bbf3",
+									"id": 191,
+									"name": "MetadataIsFrozen",
+									"nameLocation": "7573:16:0",
+									"nodeType": "ErrorDefinition",
+									"parameters": {
+										"id": 190,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "7589:2:0"
+									},
+									"src": "7567:25:0"
+								},
+								{
+									"documentation": {
+										"id": 192,
+										"nodeType": "StructuredDocumentation",
+										"src": "7598:178:0",
+										"text": " @dev The requested quantity exceeds the edition's remaining mintable token quantity.\n @param available The number of tokens remaining available for mint."
+									},
+									"errorSelector": "4d5c803f",
+									"id": 196,
+									"name": "ExceedsEditionAvailableSupply",
+									"nameLocation": "7787:29:0",
+									"nodeType": "ErrorDefinition",
+									"parameters": {
+										"id": 195,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 194,
+												"mutability": "mutable",
+												"name": "available",
+												"nameLocation": "7824:9:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 196,
+												"src": "7817:16:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint32",
+													"typeString": "uint32"
+												},
+												"typeName": {
+													"id": 193,
+													"name": "uint32",
+													"nodeType": "ElementaryTypeName",
+													"src": "7817:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint32",
+														"typeString": "uint32"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "7816:18:0"
+									},
+									"src": "7781:54:0"
+								},
+								{
+									"documentation": {
+										"id": 197,
+										"nodeType": "StructuredDocumentation",
+										"src": "7841:92:0",
+										"text": " @dev The mint `quantity` cannot exceed `ADDRESS_BATCH_MINT_LIMIT` tokens."
+									},
+									"errorSelector": "851cf82a",
+									"id": 199,
+									"name": "ExceedsAddressBatchMintLimit",
+									"nameLocation": "7944:28:0",
+									"nodeType": "ErrorDefinition",
+									"parameters": {
+										"id": 198,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "7972:2:0"
+									},
+									"src": "7938:37:0"
+								},
+								{
+									"functionSelector": "de4effbd",
+									"id": 224,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "initialize",
+									"nameLocation": "8184:10:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 222,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 201,
+												"mutability": "mutable",
+												"name": "name_",
+												"nameLocation": "8218:5:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 224,
+												"src": "8204:19:0",
+												"stateVariable": false,
+												"storageLocation": "memory",
+												"typeDescriptions": {
+													"typeIdentifier": "t_string_memory_ptr",
+													"typeString": "string"
+												},
+												"typeName": {
+													"id": 200,
+													"name": "string",
+													"nodeType": "ElementaryTypeName",
+													"src": "8204:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_string_storage_ptr",
+														"typeString": "string"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 203,
+												"mutability": "mutable",
+												"name": "symbol_",
+												"nameLocation": "8247:7:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 224,
+												"src": "8233:21:0",
+												"stateVariable": false,
+												"storageLocation": "memory",
+												"typeDescriptions": {
+													"typeIdentifier": "t_string_memory_ptr",
+													"typeString": "string"
+												},
+												"typeName": {
+													"id": 202,
+													"name": "string",
+													"nodeType": "ElementaryTypeName",
+													"src": "8233:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_string_storage_ptr",
+														"typeString": "string"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 205,
+												"mutability": "mutable",
+												"name": "baseURI_",
+												"nameLocation": "8278:8:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 224,
+												"src": "8264:22:0",
+												"stateVariable": false,
+												"storageLocation": "memory",
+												"typeDescriptions": {
+													"typeIdentifier": "t_string_memory_ptr",
+													"typeString": "string"
+												},
+												"typeName": {
+													"id": 204,
+													"name": "string",
+													"nodeType": "ElementaryTypeName",
+													"src": "8264:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_string_storage_ptr",
+														"typeString": "string"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 207,
+												"mutability": "mutable",
+												"name": "contractURI_",
+												"nameLocation": "8310:12:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 224,
+												"src": "8296:26:0",
+												"stateVariable": false,
+												"storageLocation": "memory",
+												"typeDescriptions": {
+													"typeIdentifier": "t_string_memory_ptr",
+													"typeString": "string"
+												},
+												"typeName": {
+													"id": 206,
+													"name": "string",
+													"nodeType": "ElementaryTypeName",
+													"src": "8296:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_string_storage_ptr",
+														"typeString": "string"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 209,
+												"mutability": "mutable",
+												"name": "payoutAddress_",
+												"nameLocation": "8340:14:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 224,
+												"src": "8332:22:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 208,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "8332:7:0",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 211,
+												"mutability": "mutable",
+												"name": "royaltyBPS_",
+												"nameLocation": "8371:11:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 224,
+												"src": "8364:18:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint16",
+													"typeString": "uint16"
+												},
+												"typeName": {
+													"id": 210,
+													"name": "uint16",
+													"nodeType": "ElementaryTypeName",
+													"src": "8364:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint16",
+														"typeString": "uint16"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 214,
+												"mutability": "mutable",
+												"name": "_salesconfig",
+												"nameLocation": "8418:12:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 224,
+												"src": "8392:38:0",
+												"stateVariable": false,
+												"storageLocation": "memory",
+												"typeDescriptions": {
+													"typeIdentifier": "t_struct$_SalesConfiguration_$36_memory_ptr",
+													"typeString": "struct IERC721TestDrop.SalesConfiguration"
+												},
+												"typeName": {
+													"id": 213,
+													"nodeType": "UserDefinedTypeName",
+													"pathNode": {
+														"id": 212,
+														"name": "SalesConfiguration",
+														"nameLocations": [
+															"8392:18:0"
+														],
+														"nodeType": "IdentifierPath",
+														"referencedDeclaration": 36,
+														"src": "8392:18:0"
+													},
+													"referencedDeclaration": 36,
+													"src": "8392:18:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_struct$_SalesConfiguration_$36_storage_ptr",
+														"typeString": "struct IERC721TestDrop.SalesConfiguration"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 216,
+												"mutability": "mutable",
+												"name": "editionMaxMintable_",
+												"nameLocation": "8447:19:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 224,
+												"src": "8440:26:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint32",
+													"typeString": "uint32"
+												},
+												"typeName": {
+													"id": 215,
+													"name": "uint32",
+													"nodeType": "ElementaryTypeName",
+													"src": "8440:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint32",
+														"typeString": "uint32"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 218,
+												"mutability": "mutable",
+												"name": "flags_",
+												"nameLocation": "8482:6:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 224,
+												"src": "8476:12:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint8",
+													"typeString": "uint8"
+												},
+												"typeName": {
+													"id": 217,
+													"name": "uint8",
+													"nodeType": "ElementaryTypeName",
+													"src": "8476:5:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint8",
+														"typeString": "uint8"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 221,
+												"mutability": "mutable",
+												"name": "testFeeManager_",
+												"nameLocation": "8514:15:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 224,
+												"src": "8498:31:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_contract$_ITestFeeManager_$384",
+													"typeString": "contract ITestFeeManager"
+												},
+												"typeName": {
+													"id": 220,
+													"nodeType": "UserDefinedTypeName",
+													"pathNode": {
+														"id": 219,
+														"name": "ITestFeeManager",
+														"nameLocations": [
+															"8498:15:0"
+														],
+														"nodeType": "IdentifierPath",
+														"referencedDeclaration": 384,
+														"src": "8498:15:0"
+													},
+													"referencedDeclaration": 384,
+													"src": "8498:15:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_contract$_ITestFeeManager_$384",
+														"typeString": "contract ITestFeeManager"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "8194:341:0"
+									},
+									"returnParameters": {
+										"id": 223,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "8544:0:0"
+									},
+									"scope": 327,
+									"src": "8175:370:0",
+									"stateMutability": "nonpayable",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"functionSelector": "1909159a",
+									"id": 231,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "payAndMint",
+									"nameLocation": "8560:10:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 227,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 226,
+												"mutability": "mutable",
+												"name": "quantity",
+												"nameLocation": "8579:8:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 231,
+												"src": "8571:16:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 225,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "8571:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "8570:18:0"
+									},
+									"returnParameters": {
+										"id": 230,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 229,
+												"mutability": "mutable",
+												"name": "_firstMintedTokenId",
+												"nameLocation": "8647:19:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 231,
+												"src": "8639:27:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 228,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "8639:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "8638:29:0"
+									},
+									"scope": 327,
+									"src": "8551:117:0",
+									"stateMutability": "payable",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"functionSelector": "e58306f9",
+									"id": 240,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "adminMint",
+									"nameLocation": "8683:9:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 236,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 233,
+												"mutability": "mutable",
+												"name": "to",
+												"nameLocation": "8701:2:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 240,
+												"src": "8693:10:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 232,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "8693:7:0",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 235,
+												"mutability": "mutable",
+												"name": "quantity",
+												"nameLocation": "8713:8:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 240,
+												"src": "8705:16:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 234,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "8705:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "8692:30:0"
+									},
+									"returnParameters": {
+										"id": 239,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 238,
+												"mutability": "mutable",
+												"name": "_firstMintedTokenId",
+												"nameLocation": "8781:19:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 240,
+												"src": "8773:27:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 237,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "8773:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "8772:29:0"
+									},
+									"scope": 327,
+									"src": "8674:128:0",
+									"stateMutability": "payable",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"functionSelector": "778faeec",
+									"id": 250,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "airdropAdminMint",
+									"nameLocation": "8817:16:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 246,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 243,
+												"mutability": "mutable",
+												"name": "_to",
+												"nameLocation": "8853:3:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 250,
+												"src": "8834:22:0",
+												"stateVariable": false,
+												"storageLocation": "calldata",
+												"typeDescriptions": {
+													"typeIdentifier": "t_array$_t_address_$dyn_calldata_ptr",
+													"typeString": "address[]"
+												},
+												"typeName": {
+													"baseType": {
+														"id": 241,
+														"name": "address",
+														"nodeType": "ElementaryTypeName",
+														"src": "8834:7:0",
+														"stateMutability": "nonpayable",
+														"typeDescriptions": {
+															"typeIdentifier": "t_address",
+															"typeString": "address"
+														}
+													},
+													"id": 242,
+													"nodeType": "ArrayTypeName",
+													"src": "8834:9:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_array$_t_address_$dyn_storage_ptr",
+														"typeString": "address[]"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 245,
+												"mutability": "mutable",
+												"name": "_quantity",
+												"nameLocation": "8866:9:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 250,
+												"src": "8858:17:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 244,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "8858:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "8833:43:0"
+									},
+									"returnParameters": {
+										"id": 249,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 248,
+												"mutability": "mutable",
+												"name": "_firstMintedTokenId",
+												"nameLocation": "8919:19:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 250,
+												"src": "8911:27:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 247,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "8911:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "8910:29:0"
+									},
+									"scope": 327,
+									"src": "8808:132:0",
+									"stateMutability": "nonpayable",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"documentation": {
+										"id": 251,
+										"nodeType": "StructuredDocumentation",
+										"src": "8946:193:0",
+										"text": "=============================================================\nPRESALE FUNCTIONS\n============================================================="
+									},
+									"functionSelector": "25024a2b",
+									"id": 265,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "purchasePresale",
+									"nameLocation": "9154:15:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 261,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 253,
+												"mutability": "mutable",
+												"name": "quantity",
+												"nameLocation": "9187:8:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 265,
+												"src": "9179:16:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 252,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "9179:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 255,
+												"mutability": "mutable",
+												"name": "maxQuantity",
+												"nameLocation": "9213:11:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 265,
+												"src": "9205:19:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 254,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "9205:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 257,
+												"mutability": "mutable",
+												"name": "pricePerToken",
+												"nameLocation": "9242:13:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 265,
+												"src": "9234:21:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 256,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "9234:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 260,
+												"mutability": "mutable",
+												"name": "merkleProof",
+												"nameLocation": "9284:11:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 265,
+												"src": "9265:30:0",
+												"stateVariable": false,
+												"storageLocation": "calldata",
+												"typeDescriptions": {
+													"typeIdentifier": "t_array$_t_bytes32_$dyn_calldata_ptr",
+													"typeString": "bytes32[]"
+												},
+												"typeName": {
+													"baseType": {
+														"id": 258,
+														"name": "bytes32",
+														"nodeType": "ElementaryTypeName",
+														"src": "9265:7:0",
+														"typeDescriptions": {
+															"typeIdentifier": "t_bytes32",
+															"typeString": "bytes32"
+														}
+													},
+													"id": 259,
+													"nodeType": "ArrayTypeName",
+													"src": "9265:9:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_array$_t_bytes32_$dyn_storage_ptr",
+														"typeString": "bytes32[]"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "9169:132:0"
+									},
+									"returnParameters": {
+										"id": 264,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 263,
+												"mutability": "mutable",
+												"name": "",
+												"nameLocation": "-1:-1:-1",
+												"nodeType": "VariableDeclaration",
+												"scope": 265,
+												"src": "9328:7:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint256",
+													"typeString": "uint256"
+												},
+												"typeName": {
+													"id": 262,
+													"name": "uint256",
+													"nodeType": "ElementaryTypeName",
+													"src": "9328:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint256",
+														"typeString": "uint256"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "9327:9:0"
+									},
+									"scope": 327,
+									"src": "9145:192:0",
+									"stateMutability": "payable",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"functionSelector": "ffdb7163",
+									"id": 282,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "setSaleConfiguration",
+									"nameLocation": "9352:20:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 280,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 267,
+												"mutability": "mutable",
+												"name": "publicSalePrice",
+												"nameLocation": "9390:15:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 282,
+												"src": "9382:23:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint104",
+													"typeString": "uint104"
+												},
+												"typeName": {
+													"id": 266,
+													"name": "uint104",
+													"nodeType": "ElementaryTypeName",
+													"src": "9382:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint104",
+														"typeString": "uint104"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 269,
+												"mutability": "mutable",
+												"name": "maxSalePurchasePerAddress",
+												"nameLocation": "9422:25:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 282,
+												"src": "9415:32:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint32",
+													"typeString": "uint32"
+												},
+												"typeName": {
+													"id": 268,
+													"name": "uint32",
+													"nodeType": "ElementaryTypeName",
+													"src": "9415:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint32",
+														"typeString": "uint32"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 271,
+												"mutability": "mutable",
+												"name": "publicSaleStart",
+												"nameLocation": "9464:15:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 282,
+												"src": "9457:22:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint64",
+													"typeString": "uint64"
+												},
+												"typeName": {
+													"id": 270,
+													"name": "uint64",
+													"nodeType": "ElementaryTypeName",
+													"src": "9457:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint64",
+														"typeString": "uint64"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 273,
+												"mutability": "mutable",
+												"name": "publicSaleEnd",
+												"nameLocation": "9496:13:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 282,
+												"src": "9489:20:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint64",
+													"typeString": "uint64"
+												},
+												"typeName": {
+													"id": 272,
+													"name": "uint64",
+													"nodeType": "ElementaryTypeName",
+													"src": "9489:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint64",
+														"typeString": "uint64"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 275,
+												"mutability": "mutable",
+												"name": "presaleStart",
+												"nameLocation": "9526:12:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 282,
+												"src": "9519:19:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint64",
+													"typeString": "uint64"
+												},
+												"typeName": {
+													"id": 274,
+													"name": "uint64",
+													"nodeType": "ElementaryTypeName",
+													"src": "9519:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint64",
+														"typeString": "uint64"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 277,
+												"mutability": "mutable",
+												"name": "presaleEnd",
+												"nameLocation": "9555:10:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 282,
+												"src": "9548:17:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint64",
+													"typeString": "uint64"
+												},
+												"typeName": {
+													"id": 276,
+													"name": "uint64",
+													"nodeType": "ElementaryTypeName",
+													"src": "9548:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint64",
+														"typeString": "uint64"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 279,
+												"mutability": "mutable",
+												"name": "presaleMerkleRoot",
+												"nameLocation": "9583:17:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 282,
+												"src": "9575:25:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_bytes32",
+													"typeString": "bytes32"
+												},
+												"typeName": {
+													"id": 278,
+													"name": "bytes32",
+													"nodeType": "ElementaryTypeName",
+													"src": "9575:7:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_bytes32",
+														"typeString": "bytes32"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "9372:234:0"
+									},
+									"returnParameters": {
+										"id": 281,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "9615:0:0"
+									},
+									"scope": 327,
+									"src": "9343:273:0",
+									"stateMutability": "nonpayable",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"functionSelector": "e086e5ec",
+									"id": 285,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "withdrawETH",
+									"nameLocation": "9631:11:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 283,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "9642:2:0"
+									},
+									"returnParameters": {
+										"id": 284,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "9653:0:0"
+									},
+									"scope": 327,
+									"src": "9622:32:0",
+									"stateMutability": "nonpayable",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"documentation": {
+										"id": 286,
+										"nodeType": "StructuredDocumentation",
+										"src": "9728:192:0",
+										"text": "=============================================================\nADMIN FUNCTIONS\n============================================================="
+									},
+									"functionSelector": "4c261247",
+									"id": 291,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "reveal",
+									"nameLocation": "9935:6:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 289,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 288,
+												"mutability": "mutable",
+												"name": "baseURI_",
+												"nameLocation": "9958:8:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 291,
+												"src": "9942:24:0",
+												"stateVariable": false,
+												"storageLocation": "calldata",
+												"typeDescriptions": {
+													"typeIdentifier": "t_string_calldata_ptr",
+													"typeString": "string"
+												},
+												"typeName": {
+													"id": 287,
+													"name": "string",
+													"nodeType": "ElementaryTypeName",
+													"src": "9942:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_string_storage_ptr",
+														"typeString": "string"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "9941:26:0"
+									},
+									"returnParameters": {
+										"id": 290,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "9976:0:0"
+									},
+									"scope": 327,
+									"src": "9926:51:0",
+									"stateMutability": "nonpayable",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"functionSelector": "72c7dbbe",
+									"id": 296,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "updatePreRevealContent",
+									"nameLocation": "9992:22:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 294,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 293,
+												"mutability": "mutable",
+												"name": "baseURI_",
+												"nameLocation": "10029:8:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 296,
+												"src": "10015:22:0",
+												"stateVariable": false,
+												"storageLocation": "memory",
+												"typeDescriptions": {
+													"typeIdentifier": "t_string_memory_ptr",
+													"typeString": "string"
+												},
+												"typeName": {
+													"id": 292,
+													"name": "string",
+													"nodeType": "ElementaryTypeName",
+													"src": "10015:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_string_storage_ptr",
+														"typeString": "string"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "10014:24:0"
+									},
+									"returnParameters": {
+										"id": 295,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "10047:0:0"
+									},
+									"scope": 327,
+									"src": "9983:65:0",
+									"stateMutability": "nonpayable",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"functionSelector": "d111515d",
+									"id": 299,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "freezeMetadata",
+									"nameLocation": "10063:14:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 297,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "10077:2:0"
+									},
+									"returnParameters": {
+										"id": 298,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "10088:0:0"
+									},
+									"scope": 327,
+									"src": "10054:35:0",
+									"stateMutability": "nonpayable",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"functionSelector": "36e79a5a",
+									"id": 304,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "setRoyalty",
+									"nameLocation": "10104:10:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 302,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 301,
+												"mutability": "mutable",
+												"name": "royaltyBPS_",
+												"nameLocation": "10122:11:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 304,
+												"src": "10115:18:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint16",
+													"typeString": "uint16"
+												},
+												"typeName": {
+													"id": 300,
+													"name": "uint16",
+													"nodeType": "ElementaryTypeName",
+													"src": "10115:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint16",
+														"typeString": "uint16"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "10114:20:0"
+									},
+									"returnParameters": {
+										"id": 303,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "10143:0:0"
+									},
+									"scope": 327,
+									"src": "10095:49:0",
+									"stateMutability": "nonpayable",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"functionSelector": "33ea51a8",
+									"id": 309,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "setPayoutAddress",
+									"nameLocation": "10159:16:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 307,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 306,
+												"mutability": "mutable",
+												"name": "_payoutAddress",
+												"nameLocation": "10184:14:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 309,
+												"src": "10176:22:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 305,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "10176:7:0",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "10175:24:0"
+									},
+									"returnParameters": {
+										"id": 308,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "10208:0:0"
+									},
+									"scope": 327,
+									"src": "10150:59:0",
+									"stateMutability": "nonpayable",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"functionSelector": "a22cb465",
+									"id": 316,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "setApprovalForAll",
+									"nameLocation": "10224:17:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 314,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 311,
+												"mutability": "mutable",
+												"name": "operator",
+												"nameLocation": "10250:8:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 316,
+												"src": "10242:16:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 310,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "10242:7:0",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											},
+											{
+												"constant": false,
+												"id": 313,
+												"mutability": "mutable",
+												"name": "approved",
+												"nameLocation": "10265:8:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 316,
+												"src": "10260:13:0",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_bool",
+													"typeString": "bool"
+												},
+												"typeName": {
+													"id": 312,
+													"name": "bool",
+													"nodeType": "ElementaryTypeName",
+													"src": "10260:4:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_bool",
+														"typeString": "bool"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "10241:33:0"
+									},
+									"returnParameters": {
+										"id": 315,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "10283:0:0"
+									},
+									"scope": 327,
+									"src": "10215:69:0",
+									"stateMutability": "nonpayable",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"functionSelector": "55f804b3",
+									"id": 321,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "setBaseURI",
+									"nameLocation": "10299:10:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 319,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 318,
+												"mutability": "mutable",
+												"name": "baseURI",
+												"nameLocation": "10324:7:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 321,
+												"src": "10310:21:0",
+												"stateVariable": false,
+												"storageLocation": "memory",
+												"typeDescriptions": {
+													"typeIdentifier": "t_string_memory_ptr",
+													"typeString": "string"
+												},
+												"typeName": {
+													"id": 317,
+													"name": "string",
+													"nodeType": "ElementaryTypeName",
+													"src": "10310:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_string_storage_ptr",
+														"typeString": "string"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "10309:23:0"
+									},
+									"returnParameters": {
+										"id": 320,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "10341:0:0"
+									},
+									"scope": 327,
+									"src": "10290:52:0",
+									"stateMutability": "nonpayable",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"functionSelector": "938e3d7b",
+									"id": 326,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "setContractURI",
+									"nameLocation": "10357:14:0",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 324,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 323,
+												"mutability": "mutable",
+												"name": "contractURI",
+												"nameLocation": "10386:11:0",
+												"nodeType": "VariableDeclaration",
+												"scope": 326,
+												"src": "10372:25:0",
+												"stateVariable": false,
+												"storageLocation": "memory",
+												"typeDescriptions": {
+													"typeIdentifier": "t_string_memory_ptr",
+													"typeString": "string"
+												},
+												"typeName": {
+													"id": 322,
+													"name": "string",
+													"nodeType": "ElementaryTypeName",
+													"src": "10372:6:0",
+													"typeDescriptions": {
+														"typeIdentifier": "t_string_storage_ptr",
+														"typeString": "string"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "10371:27:0"
+									},
+									"returnParameters": {
+										"id": 325,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "10407:0:0"
+									},
+									"scope": 327,
+									"src": "10348:60:0",
+									"stateMutability": "nonpayable",
+									"virtual": false,
+									"visibility": "external"
+								}
+							],
+							"scope": 328,
+							"src": "475:9940:0",
+							"usedErrors": [
+								152,
+								155,
+								158,
+								161,
+								166,
+								169,
+								172,
+								175,
+								177,
+								180,
+								188,
+								191,
+								196,
+								199
+							]
+						}
+					],
+					"src": "32:10384:0"
+				},
+				"id": 0
+			},
+			"ITestFeeManager.sol": {
+				"ast": {
+					"absolutePath": "ITestFeeManager.sol",
+					"exportedSymbols": {
+						"ITestFeeManager": [
+							384
+						]
+					},
+					"id": 385,
+					"license": "MIT",
+					"nodeType": "SourceUnit",
+					"nodes": [
+						{
+							"id": 329,
+							"literals": [
+								"solidity",
+								"^",
+								"0.8",
+								".16"
+							],
+							"nodeType": "PragmaDirective",
+							"src": "32:24:1"
+						},
+						{
+							"abstract": false,
+							"baseContracts": [],
+							"canonicalName": "ITestFeeManager",
+							"contractDependencies": [],
+							"contractKind": "interface",
+							"documentation": {
+								"id": 330,
+								"nodeType": "StructuredDocumentation",
+								"src": "58:74:1",
+								"text": " @title ITestFeeManager\n @author https://github.com/chirag-bgh"
+							},
+							"fullyImplemented": false,
+							"id": 384,
+							"linearizedBaseContracts": [
+								384
+							],
+							"name": "ITestFeeManager",
+							"nameLocation": "143:15:1",
+							"nodeType": "ContractDefinition",
+							"nodes": [
+								{
+									"anonymous": false,
+									"documentation": {
+										"id": 331,
+										"nodeType": "StructuredDocumentation",
+										"src": "165:69:1",
+										"text": " @dev Emitted when the `testFeeAddress` is changed."
+									},
+									"eventSelector": "adf209bc61580fb62a9356bed67b959397b4a091fe79ec4b5d6dfc62f1ee05cf",
+									"id": 335,
+									"name": "TestFeeAddressSet",
+									"nameLocation": "245:17:1",
+									"nodeType": "EventDefinition",
+									"parameters": {
+										"id": 334,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 333,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "testFeeAddress",
+												"nameLocation": "271:14:1",
+												"nodeType": "VariableDeclaration",
+												"scope": 335,
+												"src": "263:22:1",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 332,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "263:7:1",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "262:24:1"
+									},
+									"src": "239:48:1"
+								},
+								{
+									"anonymous": false,
+									"documentation": {
+										"id": 336,
+										"nodeType": "StructuredDocumentation",
+										"src": "293:69:1",
+										"text": " @dev Emitted when the `platformFeeBPS` is changed."
+									},
+									"eventSelector": "1426859b6b96e2e9ae302b23a42f763f4b0ae916a71a093e61c77120458b2e95",
+									"id": 340,
+									"name": "PlatformFeeSet",
+									"nameLocation": "373:14:1",
+									"nodeType": "EventDefinition",
+									"parameters": {
+										"id": 339,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 338,
+												"indexed": false,
+												"mutability": "mutable",
+												"name": "platformFeeBPS",
+												"nameLocation": "395:14:1",
+												"nodeType": "VariableDeclaration",
+												"scope": 340,
+												"src": "388:21:1",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint16",
+													"typeString": "uint16"
+												},
+												"typeName": {
+													"id": 337,
+													"name": "uint16",
+													"nodeType": "ElementaryTypeName",
+													"src": "388:6:1",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint16",
+														"typeString": "uint16"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "387:23:1"
+									},
+									"src": "367:44:1"
+								},
+								{
+									"documentation": {
+										"id": 341,
+										"nodeType": "StructuredDocumentation",
+										"src": "417:72:1",
+										"text": " @dev The new `testFeeAddress` must not be address(0)."
+									},
+									"errorSelector": "3d0e4bb7",
+									"id": 343,
+									"name": "InvalidTestFeeAddress",
+									"nameLocation": "500:21:1",
+									"nodeType": "ErrorDefinition",
+									"parameters": {
+										"id": 342,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "521:2:1"
+									},
+									"src": "494:30:1"
+								},
+								{
+									"documentation": {
+										"id": 344,
+										"nodeType": "StructuredDocumentation",
+										"src": "530:78:1",
+										"text": " @dev The platform fee numerator must not exceed `_MAX_BPS`."
+									},
+									"errorSelector": "3d1e8584",
+									"id": 346,
+									"name": "InvalidPlatformFeeBPS",
+									"nameLocation": "619:21:1",
+									"nodeType": "ErrorDefinition",
+									"parameters": {
+										"id": 345,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "640:2:1"
+									},
+									"src": "613:30:1"
+								},
+								{
+									"documentation": {
+										"id": 347,
+										"nodeType": "StructuredDocumentation",
+										"src": "649:198:1",
+										"text": " @dev Sets the `testFeeAddress`.\n Calling conditions:\n - The caller must be the owner of the contract.\n @param testFeeAddress_ The test fee address."
+									},
+									"functionSelector": "f24b9141",
+									"id": 352,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "setTestFeeAddress",
+									"nameLocation": "861:17:1",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 350,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 349,
+												"mutability": "mutable",
+												"name": "testFeeAddress_",
+												"nameLocation": "887:15:1",
+												"nodeType": "VariableDeclaration",
+												"scope": 352,
+												"src": "879:23:1",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 348,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "879:7:1",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "878:25:1"
+									},
+									"returnParameters": {
+										"id": 351,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "912:0:1"
+									},
+									"scope": 384,
+									"src": "852:61:1",
+									"stateMutability": "nonpayable",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"documentation": {
+										"id": 353,
+										"nodeType": "StructuredDocumentation",
+										"src": "919:219:1",
+										"text": " @dev Sets the `platformFeePBS`.\n Calling conditions:\n - The caller must be the owner of the contract.\n @param platformFeeBPS_ Platform fee amount in bps (basis points)."
+									},
+									"functionSelector": "193fd903",
+									"id": 358,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "setPlatformFeeBPS",
+									"nameLocation": "1152:17:1",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 356,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 355,
+												"mutability": "mutable",
+												"name": "platformFeeBPS_",
+												"nameLocation": "1177:15:1",
+												"nodeType": "VariableDeclaration",
+												"scope": 358,
+												"src": "1170:22:1",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint16",
+													"typeString": "uint16"
+												},
+												"typeName": {
+													"id": 354,
+													"name": "uint16",
+													"nodeType": "ElementaryTypeName",
+													"src": "1170:6:1",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint16",
+														"typeString": "uint16"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "1169:24:1"
+									},
+									"returnParameters": {
+										"id": 357,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "1202:0:1"
+									},
+									"scope": 384,
+									"src": "1143:60:1",
+									"stateMutability": "nonpayable",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"functionSelector": "e714942d",
+									"id": 363,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "getTestFeeManager",
+									"nameLocation": "1240:17:1",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 359,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "1257:2:1"
+									},
+									"returnParameters": {
+										"id": 362,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 361,
+												"mutability": "mutable",
+												"name": "",
+												"nameLocation": "-1:-1:-1",
+												"nodeType": "VariableDeclaration",
+												"scope": 363,
+												"src": "1283:7:1",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 360,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "1283:7:1",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "1282:9:1"
+									},
+									"scope": 384,
+									"src": "1231:61:1",
+									"stateMutability": "view",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"documentation": {
+										"id": 364,
+										"nodeType": "StructuredDocumentation",
+										"src": "1298:112:1",
+										"text": " @dev The protocol's address that receives platform fees.\n @return The configured value."
+									},
+									"functionSelector": "bfcf0a9e",
+									"id": 369,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "testFeeAddress",
+									"nameLocation": "1424:14:1",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 365,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "1438:2:1"
+									},
+									"returnParameters": {
+										"id": 368,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 367,
+												"mutability": "mutable",
+												"name": "",
+												"nameLocation": "-1:-1:-1",
+												"nodeType": "VariableDeclaration",
+												"scope": 369,
+												"src": "1464:7:1",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_address",
+													"typeString": "address"
+												},
+												"typeName": {
+													"id": 366,
+													"name": "address",
+													"nodeType": "ElementaryTypeName",
+													"src": "1464:7:1",
+													"stateMutability": "nonpayable",
+													"typeDescriptions": {
+														"typeIdentifier": "t_address",
+														"typeString": "address"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "1463:9:1"
+									},
+									"scope": 384,
+									"src": "1415:58:1",
+									"stateMutability": "view",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"documentation": {
+										"id": 370,
+										"nodeType": "StructuredDocumentation",
+										"src": "1479:95:1",
+										"text": " @dev The numerator of the platform fee.\n @return The configured value."
+									},
+									"functionSelector": "ebaaa3a1",
+									"id": 375,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "platformFeeBPS",
+									"nameLocation": "1588:14:1",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 371,
+										"nodeType": "ParameterList",
+										"parameters": [],
+										"src": "1602:2:1"
+									},
+									"returnParameters": {
+										"id": 374,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 373,
+												"mutability": "mutable",
+												"name": "",
+												"nameLocation": "-1:-1:-1",
+												"nodeType": "VariableDeclaration",
+												"scope": 375,
+												"src": "1628:6:1",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint16",
+													"typeString": "uint16"
+												},
+												"typeName": {
+													"id": 372,
+													"name": "uint16",
+													"nodeType": "ElementaryTypeName",
+													"src": "1628:6:1",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint16",
+														"typeString": "uint16"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "1627:8:1"
+									},
+									"scope": 384,
+									"src": "1579:57:1",
+									"stateMutability": "view",
+									"virtual": false,
+									"visibility": "external"
+								},
+								{
+									"documentation": {
+										"id": 376,
+										"nodeType": "StructuredDocumentation",
+										"src": "1642:176:1",
+										"text": " @dev The platform fee for `requiredEtherValue`.\n @param requiredEtherValue The required Ether value for payment.\n @return fee The computed value."
+									},
+									"functionSelector": "0d411b21",
+									"id": 383,
+									"implemented": false,
+									"kind": "function",
+									"modifiers": [],
+									"name": "platformFee",
+									"nameLocation": "1832:11:1",
+									"nodeType": "FunctionDefinition",
+									"parameters": {
+										"id": 379,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 378,
+												"mutability": "mutable",
+												"name": "requiredEtherValue",
+												"nameLocation": "1852:18:1",
+												"nodeType": "VariableDeclaration",
+												"scope": 383,
+												"src": "1844:26:1",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint128",
+													"typeString": "uint128"
+												},
+												"typeName": {
+													"id": 377,
+													"name": "uint128",
+													"nodeType": "ElementaryTypeName",
+													"src": "1844:7:1",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint128",
+														"typeString": "uint128"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "1843:28:1"
+									},
+									"returnParameters": {
+										"id": 382,
+										"nodeType": "ParameterList",
+										"parameters": [
+											{
+												"constant": false,
+												"id": 381,
+												"mutability": "mutable",
+												"name": "fee",
+												"nameLocation": "1927:3:1",
+												"nodeType": "VariableDeclaration",
+												"scope": 383,
+												"src": "1919:11:1",
+												"stateVariable": false,
+												"storageLocation": "default",
+												"typeDescriptions": {
+													"typeIdentifier": "t_uint128",
+													"typeString": "uint128"
+												},
+												"typeName": {
+													"id": 380,
+													"name": "uint128",
+													"nodeType": "ElementaryTypeName",
+													"src": "1919:7:1",
+													"typeDescriptions": {
+														"typeIdentifier": "t_uint128",
+														"typeString": "uint128"
+													}
+												},
+												"visibility": "internal"
+											}
+										],
+										"src": "1918:13:1"
+									},
+									"scope": 384,
+									"src": "1823:109:1",
+									"stateMutability": "view",
+									"virtual": false,
+									"visibility": "external"
+								}
+							],
+							"scope": 385,
+							"src": "133:1801:1",
+							"usedErrors": [
+								343,
+								346
+							]
+						}
+					],
+					"src": "32:1903:1"
+				},
+				"id": 1
+			}
+		}
+	}
+}

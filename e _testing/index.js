@@ -2,9 +2,8 @@ const express = require('express');
 const router = require('./Routes/route.js')
 const bodyParser = require('body-parser')
 const app = express();
-const path = require("path");
-const view=require('./Controlers/control');
-const rout=express.Router();
+const cors = require("cors");
+app.use(cors());
 app.use(bodyParser.urlencoded({extended:true}));
 const port =  process.env.PORT||2001;
 app.use('/',router.rout);

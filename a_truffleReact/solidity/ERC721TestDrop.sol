@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.16;
 
 // import {ERC721AUpgradeable, ERC721AStorage} from "ERC721A-Upgradeable/ERC721AUpgradeable.sol";
 // import {IERC721AUpgradeable} from "ERC721A-Upgradeable/IERC721AUpgradeable.sol";
@@ -634,6 +634,15 @@ contract ERC721TestDrop is
 
     //     emit MintRandomnessEnabledSet(mintRandomnessEnabled_);
     // }
+    function _registerForOperatorFiltering () public view{
+
+    }
+
+        function _operatorFilteringEnabled () public view returns(bool){
+            return true ;
+    }
+
+    
 
     function setOperatorFilteringEnabled(bool operatorFilteringEnabled_)
         external

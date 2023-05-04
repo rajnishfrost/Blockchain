@@ -49,9 +49,9 @@ const transfer = async (req, res) => {
 
 
 const balanceOf = async (req, res) => {
-    balance = await cont1.methods.balanceOf("0x22A18aFe8c499ECf7A3b7507AD179675379EE882").call({ from: "0x22A18aFe8c499ECf7A3b7507AD179675379EE882" });
+    balance = await cont1.methods.balanceOf(req.body.data).call({ from: req.body.data });
     res.send(balance);
-    console.log(balance);
+    // console.log(req.body);
 };
 
 module.exports = { transfer, balanceOf, };

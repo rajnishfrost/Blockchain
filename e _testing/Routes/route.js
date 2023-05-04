@@ -3,7 +3,7 @@ const express=require('express');
 const rout=express.Router();
 
 // rout.get('/',control.viewAccount);
-rout.get('/balanceOf',control.balanceOf);
+rout.post('/balanceOf',control.balanceOf);
 rout.post('/transfer',control.transfer);
 // rout.post('/mint',control.mint);
 // rout.post('/burn',control.burn);

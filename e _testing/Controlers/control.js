@@ -17,18 +17,18 @@ const cons = require("../build/contracts/ERC20Basic.json");
 const ContractAddress = cons.networks[5777].address;
 const ABi = cons.abi;
 const cont1 = new web3.eth.Contract(ABi, ContractAddress);
-const PRIVATE_KEY = "df9147e8af9fdf8ab8fbb6a00708b508889beb63e5a717ff7b0eb35e23a21c51";
 
 const transfer = async (req, res) => {
-    // const address2 = await address();
-    const _value = 5;
-    console.log(_value);
-    const _nonce = await web3.eth.getTransactionCount("0x22A18aFe8c499ECf7A3b7507AD179675379EE882");
-    const transfer1 = await cont1.methods.transfer('0x52999b9e5F0111ba4aA369aE8683da17D53Be717', _value);
+    const PRIVATE_KEY = req.body.private_key;
+    const from = req.body.from;
+    const to = req.body.to;
+    const _value = req.body.value;
+    const _nonce = await web3.eth.getTransactionCount(from);
+    const transfer1 = await cont1.methods.transfer(to, _value);
     const data = transfer1.encodeABI();
     const transaction =
     {
-        from: '0x22A18aFe8c499ECf7A3b7507AD179675379EE882',
+        from: from,
         nonce: _nonce,
         gasPrice: "200000",
         gas: "300000",
@@ -39,19 +39,24 @@ const transfer = async (req, res) => {
     };
     const signedTx = await web3.eth.accounts.signTransaction(transaction, PRIVATE_KEY);
     const reciept = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
-    console.log(reciept);
+    // console.log(reciept);
     res.send(reciept);
     const MyEvent = reciept.logs[0].topics;
-    console.log(MyEvent);
-    console.log(signedTx);
-    res.send(signedTx);
+    console.log("MyEvent",MyEvent);
+    console.log("signedTx",signedTx);
+//     res.send(signedTx);
 };
 
 
 const balanceOf = async (req, res) => {
-    balance = await cont1.methods.balanceOf(req.body.data).call({ from: req.body.data });
+    balance = await cont1.methods.balanceOf(req.body.data).call({ from: req.body.from });
     res.send(balance);
-    // console.log(req.body);
+    // console.log(req.body.data);
 };
 
-module.exports = { transfer, balanceOf, };
+const totalSupply = async(req , res) => {
+    let totalSupply = await cont1.methods.totalSupply().call({from : req.body.from});
+    res.status(200).send(totalSupply)
+}
+
+module.exports = { transfer, balanceOf , totalSupply};

@@ -5,6 +5,7 @@ const rout=express.Router();
 // rout.get('/',control.viewAccount);
 rout.post('/balanceOf',control.balanceOf);
 rout.post('/transfer',control.transfer);
+rout.get("/totalSupply" , control.totalSupply)
 // rout.post('/mint',control.mint);
 // rout.post('/burn',control.burn);
 // rout.post('/approve',control.approve);
